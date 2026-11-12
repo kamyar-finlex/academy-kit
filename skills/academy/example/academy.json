@@ -1,0 +1,56 @@
+{
+  "id": "learn-the-academy-kit",
+  "title": "Learn the Academy Kit",
+  "subtitle": "How to make an academy from documents and keep it current",
+  "logo": "A",
+  "domain": "Academy Kit, a tool that turns documents into a private learning website",
+  "language": {
+    "code": "en",
+    "name": "English"
+  },
+  "reader": {
+    "code": "de",
+    "name": "German",
+    "rtl": false,
+    "badge": "DE",
+    "example": {
+      "tr": "Fälligkeitsdatum",
+      "meaning": "Der Tag, an dem das Buch zurück sein muss."
+    }
+  },
+  "ai": {
+    "models": [
+      "gemma4:e4b",
+      "gemma3:4b"
+    ]
+  },
+  "codes": "(?:REQ-|[RP])\\d{1,3}",
+  "groups": [
+    {
+      "title": "Make an academy",
+      "prefix": "M",
+      "intro": "M0",
+      "blurb": "What an academy is, the seven steps that make one, and how to write a lesson."
+    },
+    {
+      "title": "Keep it going",
+      "lessons": ["K1"],
+      "blurb": "Change lessons, follow the documents when they change, and add the optional extras."
+    }
+  ],
+  "home": {
+    "kicker": "Academy Kit",
+    "heading": "Learn to make and maintain an academy",
+    "intro": "Four short lessons for a colleague who has never used the kit. Start with the overview, then follow the steps, then learn how one lesson is written and how an academy stays in step with its documents.",
+    "sample_terms": ["academy folder", "lesson plan", "R12"],
+    "source_note": "Source: the kit's `SKILL.md` and its `references` folder (`CONFIG.md`, `LESSON_BRIEF.md`, `SYNC.md`, `VIDEO.md`)."
+  },
+  "labels": {
+    "gates": "Steps in order"
+  },
+  "source": {
+    "type": "folder",
+    "path": "../references",
+    "label": "the kit's references folder"
+  }
+}

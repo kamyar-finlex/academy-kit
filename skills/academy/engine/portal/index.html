@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="{{lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{title}}</title>
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/theme.css">
+</head>
+<body>
+<header class="appbar">
+  <button class="menu" id="menuBtn" aria-label="Open lessons">☰</button>
+  <div class="brand"><span class="logo">{{logo}}</span><div><strong>{{title}}</strong><small>{{subtitle}}</small></div></div>
+  <div class="tools">
+    <label class="switch"><input type="checkbox" id="plainToggle" checked> <span>{{plain_toggle}}</span></label>
+    <span class="score" id="score"></span>
+  </div>
+</header>
+<div class="layout">
+  <nav class="side" id="side" aria-label="Lessons"></nav>
+  <main id="main" tabindex="-1"></main>
+</div>
+<script src="assets/lessons.js?v={{build}}"></script>
+<script src="assets/app.js?v={{build}}"></script>
+</body>
+</html>

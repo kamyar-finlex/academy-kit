@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>frame</title>
+<style>
+:root {
+  --font: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;  /* render.mjs swaps in the academy's own font, if it has one */
+  /* The kit's default look; render.mjs applies the academy's "theme" on top. */
+  --brand: #1F2937; --brand-80: #4B5563; --brand-20: #D1D5DB; --brand-rgb: 31,41,55;
+  --accent: #2563EB; --accent-rgb: 37,99,235; --accent-soft: #EFF4FF; --accent-soft2: #DBEAFE;
+  --tint: #CBD5E1; --tint-light: #E8EDF5; --tint-dark: #475569; --bg: #F6F7F9; --white: #fff;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--bg); font-family: var(--font); color: var(--brand); }
+.top { position: absolute; left: 80px; right: 80px; top: 48px; display: flex; align-items: center; gap: 24px; }
+.badge { background: var(--brand); color: #fff; font-size: 34px; padding: 10px 24px; border-radius: 14px; letter-spacing: .02em; }
+.crumb { font-size: 28px; color: var(--brand-80); }
+.progress { margin-left: auto; display: flex; gap: 10px; }
+.progress i { width: 44px; height: 8px; border-radius: 4px; background: var(--brand-20); display: block; }
+.progress i.on { background: var(--accent); }
+.stage { position: absolute; left: 80px; right: 80px; top: 150px; bottom: 250px; display: flex; flex-direction: column; }
+h1 { font-weight: 400; font-size: 76px; line-height: 1.08; margin-bottom: 44px; letter-spacing: -.01em; }
+.title-stage { justify-content: center; }
+.title-stage h1 { font-size: 112px; margin-bottom: 30px; }
+.title-stage .tag { font-size: 44px; color: var(--brand-80); max-width: 1500px; line-height: 1.3; }
+.title-stage .bar { width: 160px; height: 10px; background: var(--accent); border-radius: 5px; margin-bottom: 40px; }
+ul.bullets { list-style: none; display: flex; flex-direction: column; gap: 22px; }
+ul.bullets li { font-size: 46px; line-height: 1.25; padding: 18px 28px 18px 34px; border-left: 8px solid var(--brand-20); border-radius: 6px; color: var(--brand-80); transition: none; }
+ul.bullets li.on { border-left-color: var(--accent); background: #fff; color: var(--brand); box-shadow: 0 6px 24px rgba(var(--brand-rgb),.10); }
+ul.bullets li.done { color: var(--brand); }
+.flow { display: flex; align-items: stretch; gap: 0; flex-wrap: nowrap; margin-top: 30px; }
+.flow .step { flex: 1; background: #fff; border: 3px solid var(--brand-20); border-radius: 22px; padding: 30px 24px; font-size: 36px; line-height: 1.22; display: flex; flex-direction: column; gap: 16px; min-height: 260px; color: var(--brand-80); }
+.flow .step b { font-weight: 400; font-size: 30px; color: #fff; background: var(--brand-20); width: 56px; height: 56px; border-radius: 28px; display: flex; align-items: center; justify-content: center; }
+.flow .step.on { border-color: var(--accent); color: var(--brand); box-shadow: 0 10px 30px rgba(var(--accent-rgb),.18); }
+.flow .step.on b { background: var(--accent); }
+.flow .step.done { color: var(--brand); border-color: var(--tint-dark); }
+.flow .step.done b { background: var(--tint-dark); }
+.flow .arrow { width: 54px; display: flex; align-items: center; justify-content: center; font-size: 44px; color: var(--brand-20); flex: 0 0 54px; }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+.col { border-radius: 24px; padding: 34px 36px; background: #fff; border: 3px solid var(--brand-20); }
+.col h2 { font-weight: 400; font-size: 44px; margin-bottom: 22px; display: flex; align-items: center; gap: 16px; }
+.col.left h2::before { content: ""; width: 22px; height: 22px; border-radius: 11px; background: var(--tint-dark); }
+.col.right h2::before { content: ""; width: 22px; height: 22px; border-radius: 4px; background: var(--accent); }
+.col ul { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+.col li { font-size: 34px; line-height: 1.25; padding: 10px 18px; border-radius: 12px; color: var(--brand-80); }
+.col li.on { background: var(--tint-light); color: var(--brand); outline: 3px solid var(--accent); }
+.cards { display: grid; gap: 24px; }
+.card { background: #fff; border: 3px solid var(--brand-20); border-radius: 22px; padding: 28px 30px; font-size: 36px; line-height: 1.22; color: var(--brand-80); display: flex; align-items: center; }
+.card.on { border-color: var(--accent); color: var(--brand); box-shadow: 0 10px 30px rgba(var(--accent-rgb),.18); }
+.sub { position: absolute; left: 0; right: 0; bottom: 0; height: 230px; background: var(--brand); display: flex; align-items: center; justify-content: center; padding: 0 120px; }
+.sub p { text-align: center; color: #fff; font-family: var(--font); font-size: 46px; line-height: 1.35; max-width: 1600px; text-wrap: balance; }
+/* diagram: boxes on a grid joined by arrows */
+.dia { position: relative; flex: 1; }
+.dia svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.dia .edge { stroke: var(--brand-20); stroke-width: 4; fill: none; }
+.dia .edge.dash { stroke-dasharray: 14 10; }
+.dia .edge.on { stroke: var(--accent); }
+.dia .elabel { font-size: 26px; font-family: var(--font); fill: var(--brand-80); paint-order: stroke; stroke: var(--bg); stroke-width: 10px; text-anchor: middle; }
+.dia .elabel.on { fill: var(--brand); }
+.dia .node { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; background: #fff; border: 3px solid var(--brand-20); border-radius: 20px; padding: 10px 18px; color: var(--brand-80); }
+.dia .node b { font-weight: 400; font-size: 34px; line-height: 1.15; }
+.dia .node small { font-size: 23px; color: var(--brand-80); margin-top: 6px; line-height: 1.2; }
+.dia .node.pill { border-radius: 70px; }
+.dia .node.db { border-radius: 50% / 22%; }
+.dia .node.hub { background: var(--tint-light); border-color: var(--brand); color: var(--brand); }
+.dia .node.on { border-color: var(--accent); color: var(--brand); box-shadow: 0 10px 30px rgba(var(--accent-rgb),.22); }
+.dia .node.near { border-color: var(--tint-dark); color: var(--brand); }
+/* layers: a pyramid, first layer = narrow top, last layer = wide base; each layer's items sit inside its band */
+.pyr { position: relative; flex: 1; }
+.pyr svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.pyr .band { fill: #fff; stroke: var(--brand-20); stroke-width: 3; stroke-linejoin: round; }
+.pyr .band.on { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 5; }
+.pyr .lbl { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; overflow: hidden; }
+.pyr .lbl h3 { font-weight: 400; font-size: 36px; line-height: 1.1; color: var(--brand-80); }
+.pyr .lbl.on h3 { color: var(--brand); }
+.pyr .chips2 { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.pyr .chips2 span { font-size: 26px; line-height: 1.2; padding: 6px 16px; border-radius: 30px; background: var(--tint-light); color: var(--brand); white-space: nowrap; }
+.pyr .lbl.on .chips2 span { background: var(--accent-soft2); }
+/* timeline: milestones along a line */
+.tl { flex: 1; display: flex; flex-direction: column; justify-content: center; padding-bottom: 40px; }
+.tl .line { position: absolute; z-index: 0; top: 38px; height: 8px; border-radius: 4px; background: var(--brand-20); }
+.tl .line i { display: block; height: 100%; border-radius: 4px; background: var(--accent); }
+.tl .stops { position: relative; display: grid; gap: 20px; }
+.tl .stop { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 18px; color: var(--brand-80); }
+.tl .dot { width: 84px; height: 84px; border-radius: 42px; background: #fff; border: 6px solid var(--brand-20); display: flex; align-items: center; justify-content: center; font-size: 28px; color: var(--brand-80); }
+.tl .stop.done .dot { border-color: var(--tint-dark); background: var(--tint-dark); color: #fff; }
+.tl .stop.on .dot { border-color: var(--accent); background: var(--accent); color: #fff; box-shadow: 0 8px 24px rgba(var(--accent-rgb),.3); }
+.tl .stop span { font-size: 32px; line-height: 1.2; max-width: 360px; }
+.tl .stop.on span { color: var(--brand); }
+</style>
+</head>
+<body>
+<div class="top"><span class="badge" id="badge"></span><span class="crumb" id="crumb"></span><div class="progress" id="progress"></div></div>
+<div class="stage" id="stage"></div>
+<div class="sub"><p id="sub"></p></div>
+<script>
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function cls(i, focus, kind) {
+  if (i === focus) return "on";
+  if ((kind === "flow" || kind === "bullets") && focus >= 0 && i < focus) return "done";
+  return "";
+}
+const NUM = { zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11 };
+// Narration spells IDs for the voice ("L five", "S zero three"); subtitles show them as written ("L5", "S03").
+const written = (s) => s.replace(/\b([BDGMP])((?: (?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven)\b)+)/g,
+  (_, l, ws) => l + ws.trim().split(" ").map((w) => NUM[w]).join(""))
+  // and spelled acronyms ("A P Is", "M C P", "request I D") as written ("APIs", "MCP", "ID")
+  .replace(/\b[A-Z](?: [A-Z])+(?=s?\b)/g, (m) => m.replace(/ /g, ""));
+window.renderFrame = function (lesson, si, gi) {
+  const sc = lesson.video.scenes[si];
+  const seg = sc.segments[gi] || { fa: "", focus: -1 };
+  const f = typeof seg.focus === "number" ? seg.focus : -1;
+  document.getElementById("badge").textContent = lesson.id;
+  document.getElementById("crumb").textContent = lesson.name;
+  document.getElementById("progress").innerHTML = lesson.video.scenes.map((_, i) => `<i class="${i <= si ? "on" : ""}"></i>`).join("");
+  const st = document.getElementById("stage");
+  st.className = "stage";
+  const items = sc.items || [];
+  let html = "";
+  if (sc.kind === "title") {
+    st.className = "stage title-stage";
+    html = `<div class="bar"></div><h1>${esc(sc.heading)}</h1><div class="tag">${esc(items[0] || lesson.tagline)}</div>`;
+  } else if (sc.kind === "flow") {
+    html = `<h1>${esc(sc.heading)}</h1><div class="flow">` + items.map((t, i) =>
+      (i ? `<div class="arrow">→</div>` : "") + `<div class="step ${cls(i, f, "flow")}"><b>${i + 1}</b><span>${esc(t)}</span></div>`).join("") + `</div>`;
+  } else if (sc.kind === "split") {
+    const L = sc.left || { title: "", items: [] }, R = sc.right || { title: "", items: [] };
+    const n = (L.items || []).length;
+    html = `<h1>${esc(sc.heading)}</h1><div class="split">
+      <div class="col left"><h2>${esc(L.title)}</h2><ul>${(L.items || []).map((t, i) => `<li class="${i === f ? "on" : ""}">${esc(t)}</li>`).join("")}</ul></div>
+      <div class="col right"><h2>${esc(R.title)}</h2><ul>${(R.items || []).map((t, i) => `<li class="${i + n === f ? "on" : ""}">${esc(t)}</li>`).join("")}</ul></div></div>`;
+  } else if (sc.kind === "cards") {
+    const cols = items.length > 6 ? 5 : items.length > 4 ? 3 : 2;
+    html = `<h1>${esc(sc.heading)}</h1><div class="cards" style="grid-template-columns:repeat(${cols},1fr)">` +
+      items.map((t, i) => `<div class="card ${cls(i, f, "cards")}">${esc(t)}</div>`).join("") + `</div>`;
+  } else if (sc.kind === "diagram") {
+    html = `<h1>${esc(sc.heading)}</h1><div class="dia" id="dia"></div>`;
+  } else if (sc.kind === "layers") {
+    html = `<h1>${esc(sc.heading)}</h1><div class="pyr" id="pyr"></div>`;
+  } else if (sc.kind === "timeline") {
+    const pct = items.length > 1 && f >= 0 ? (f / (items.length - 1)) * 100 : 0;
+    html = `<h1>${esc(sc.heading)}</h1><div class="tl"><div class="stops" style="grid-template-columns:repeat(${items.length},1fr)"><div class="line" style="left:${50 / items.length}%;right:${50 / items.length}%"><i style="width:${pct}%"></i></div>` +
+      items.map((t, i) => { const [k, ...rest] = String(t).split(" "); const short = /^[A-Z]\d+$/.test(k); return `<div class="stop ${i === f ? "on" : f >= 0 && i < f ? "done" : ""}"><div class="dot">${short ? esc(k) : i + 1}</div><span>${esc(short ? rest.join(" ") : t)}</span></div>`; }).join("") + `</div></div>`;
+  } else {
+    html = `<h1>${esc(sc.heading)}</h1><ul class="bullets">` + items.map((t, i) => `<li class="${cls(i, f, "bullets")}">${esc(t)}</li>`).join("") + `</ul>`;
+  }
+  st.innerHTML = html;
+  if (sc.kind === "diagram") drawDiagram(sc, f);
+  if (sc.kind === "layers") drawPyramid(sc, f);
+  document.getElementById("sub").textContent = written(seg.say || "").replace(/[`*]/g, "");
+  // shrink overflowing text to fit
+  fit();
+  return true;
+};
+
+// Diagram: nodes sit on a col/row grid; edges are straight arrows clipped to the box edges.
+// Pyramid: band i spans one slice of a trapezoid that widens towards the base.
+// Text sits inside the band's narrower top edge, so every chip is visibly inside its layer.
+function drawPyramid(sc, f) {
+  const box = document.getElementById("pyr");
+  const W = box.clientWidth, H = box.clientHeight, ls = sc.layers || [], n = Math.max(1, ls.length);
+  const gap = 12, bh = (H - gap * (n - 1)) / n, cx = W / 2;
+  const top = W * (n <= 2 ? 0.6 : 0.44), wAt = (y) => top + (W - top) * (y / H);
+  let svg = `<svg viewBox="0 0 ${W} ${H}">`, labels = "";
+  ls.forEach((ly, i) => {
+    const y0 = i * (bh + gap), y1 = y0 + bh, a = wAt(y0) / 2, b = wAt(y1) / 2, on = i === f ? "on" : "";
+    svg += `<polygon class="band ${on}" points="${cx - a},${y0} ${cx + a},${y0} ${cx + b},${y1} ${cx - b},${y1}"/>`;
+    const pad = 40 + (b - a);
+    labels += `<div class="lbl ${on}" style="left:${cx - b + pad}px;width:${2 * b - 2 * pad}px;top:${y0 + 8}px;height:${bh - 16}px">
+      <h3>${esc(ly.title)}</h3><div class="chips2">${(ly.items || []).map((x) => `<span>${esc(x)}</span>`).join("")}</div></div>`;
+  });
+  box.innerHTML = svg + "</svg>" + labels;
+  box.querySelectorAll(".lbl").forEach((el) => {
+    for (let k = 0, s = 1; k < 10 && el.scrollHeight > el.clientHeight + 1; k++) {
+      s *= 0.9;
+      el.querySelector("h3").style.fontSize = 36 * s + "px";
+      el.querySelectorAll(".chips2 span").forEach((c) => { c.style.fontSize = 26 * s + "px"; c.style.padding = `${6 * s}px ${16 * s}px`; });
+    }
+  });
+}
+function drawDiagram(sc, f) {
+  const box = document.getElementById("dia");
+  const W = box.clientWidth, H = box.clientHeight;
+  const nodes = sc.nodes || [], edges = sc.edges || [];
+  const cols = Math.max(1, ...nodes.map((n) => (n.col ?? 0) + 1)), rows = Math.max(1, ...nodes.map((n) => (n.row ?? 0) + 1));
+  const cw = W / cols, rh = H / rows;
+  const nw = Math.min(380, cw - 150), nh = Math.min(rows > 2 ? 120 : 150, rh - 50);
+  const near = new Set();
+  edges.forEach((e) => { if (e.from === f) near.add(e.to); if (e.to === f) near.add(e.from); });
+  const pos = nodes.map((n) => ({ x: ((n.col ?? 0) + 0.5) * cw, y: ((n.row ?? 0) + 0.5) * rh }));
+  let svg = `<svg viewBox="0 0 ${W} ${H}"><defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill: var(--brand-20)"/></marker>
+    <marker id="ahOn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill: var(--accent)"/></marker></defs>`;
+  const clip = (a, b) => { const dx = b.x - a.x, dy = b.y - a.y; const t = Math.min(dx ? (nw / 2 + 8) / Math.abs(dx) : Infinity, dy ? (nh / 2 + 8) / Math.abs(dy) : Infinity); return { x: a.x + dx * t, y: a.y + dy * t }; };
+  for (const e of edges) {
+    const a = pos[e.from], b = pos[e.to]; if (!a || !b) continue;
+    const p1 = clip(a, b), p2 = clip(b, a), on = e.from === f || e.to === f;
+    svg += `<path class="edge ${e.dashed ? "dash" : ""} ${on ? "on" : ""}" d="M${p1.x},${p1.y} L${p2.x},${p2.y}" marker-end="url(#${on ? "ahOn" : "ah"})" ${e.both ? `marker-start="url(#${on ? "ahOn" : "ah"})"` : ""}/>`;
+    if (e.label) {
+      // Put the label beside the arrow, not on it: above a flat arrow, right of a steep one.
+      const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2, steep = Math.abs(p2.x - p1.x) < Math.abs(p2.y - p1.y);
+      svg += `<text class="elabel ${on ? "on" : ""}" x="${steep ? mx + 16 : mx}" y="${steep ? my + 9 : my - 16}" style="text-anchor:${steep ? "start" : "middle"}">${esc(e.label)}</text>`;
+    }
+  }
+  svg += `</svg>`;
+  box.innerHTML = svg + nodes.map((n, i) => `<div class="node ${n.shape || ""} ${i === f ? "on" : near.has(i) ? "near" : ""}" style="left:${pos[i].x - nw / 2}px;top:${pos[i].y - nh / 2}px;width:${nw}px;height:${nh}px"><b>${esc(n.label)}</b>${n.sub ? `<small>${esc(n.sub)}</small>` : ""}</div>`).join("");
+}
+function fit() {
+  const st = document.getElementById("stage");
+  let scale = 1;
+  st.style.fontSize = "";
+  for (let k = 0; k < 12 && st.scrollHeight > st.clientHeight + 2; k++) {
+    scale *= 0.92;
+    st.querySelectorAll("h1, li, .step, .card, .col h2, .tag").forEach((el) => {
+      const base = el.dataset.fs || getComputedStyle(el).fontSize; el.dataset.fs = base;
+      el.style.fontSize = parseFloat(base) * scale + "px";
+    });
+  }
+  const p = document.getElementById("sub"); p.style.fontSize = "";
+  for (let k = 0; k < 8 && p.scrollHeight > 215; k++) p.style.fontSize = parseFloat(getComputedStyle(p).fontSize) * 0.92 + "px";
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,335 @@
+{
+  "id": "K1",
+  "name": "Keeping It Current",
+  "tagline": "How to change an academy later, keep its lessons in step with the documents, and add the optional videos.",
+  "why": "Documents change, and lessons should follow. A reader trusts the lessons, so a lesson that no longer matches its document may teach something that is no longer true. This lesson shows the small routine that keeps an academy in step, and what the videos need before you offer them.",
+  "sections": [
+    {
+      "heading": "Working on an existing academy",
+      "body": [
+        "Read its `ACADEMY_NOTES.md` and `academy.json` first.",
+        "- **Change or add a lesson**: edit `content/<ID>.json` as the lesson brief says, then run `validate.py`, then `build.py <academy>`. The build always rebuilds the whole site. Naming ids, as in `build.py <academy> L3`, only forces those lessons' videos to be made again. Add a new lesson to a group in `academy.json` and to `sources.json`.",
+        "- **The documents changed**: follow the sync routine in this lesson.",
+        "- **Look or wording**: change `labels`, `home` or `theme` in `academy.json`, then rebuild. Change the kit's portal files only for something every academy should get.",
+        "- **A reader in another language**: set `reader` in `academy.json` and add `tr` to the key terms. Nothing else changes."
+      ],
+      "explain": "The notes and the settings tell you how this academy was made: who reads it, which document wins, how things are worded. If you skip them, your change will sound different from the rest. Most changes touch only the academy folder. The kit changes only when every academy should get the change."
+    },
+    {
+      "heading": "What sync answers",
+      "body": [
+        "`engine/sync.py` answers two questions without any AI: did the source change, and which lessons does that touch?",
+        "Rewriting the lessons is then a person's or an agent's job.",
+        "Sync is worth it when the documents are still changing."
+      ],
+      "explain": "Sync is a detector, not a writer. It can say that a file changed and which lessons are built from that file. It cannot say whether the change matters for the lesson. Someone has to read the change and decide. This split keeps the detection simple and leaves the judgment to a person or an agent."
+    },
+    {
+      "heading": "Setting sync up",
+      "body": [
+        "In `academy.json`, say where the documents are. A git source: `\"source\": { \"type\": \"git\", \"repo\": \"https://github.com/org/docs\", \"docs_root\": \"docs\" }`. A folder source: `\"source\": { \"type\": \"folder\", \"path\": \"../handbook\" }`.",
+        "A git source is cloned once into `<academy>/source-repo`. It is read-only: never commit or push there.",
+        "Optional keys: `label` (the name on the badge), `clone`, `sources` and `state` (other file locations), `mentions` (phrases that mark a changed file as relevant) and `shared_lessons` (lessons to flag when a shared source changes; by default the intro lessons).",
+        "In `<academy>/sources.json`, say which files each lesson is built from. Paths are relative to `docs_root` inside the repo for a git source, and to `path` for a folder source. The file has `shared_sources`, a list of shared files, and `lessons`, which gives each lesson id its `sources`. Write it while you write the lessons. It is also the answer to the question \"where does this lesson come from?\"",
+        "A source is one repository or one folder. A file outside it is not watched. So keep everything the lessons are built from under it, or point `path` at a common parent folder.",
+        "Run the first check: `python3 <kit>/engine/sync.py <academy-folder> check`. It records the starting point."
+      ],
+      "explain": "Sync needs to know two things: where the documents are, and which lesson comes from which file. The first is one entry in `academy.json`. The second is `sources.json`. Sync looks only inside that one repository or folder, so a document that lives somewhere else can change without sync noticing. The first check has nothing to compare with yet, so it only remembers how the documents look now. The next check compares the documents with what was recorded."
+    },
+    {
+      "heading": "One sync run",
+      "body": [
+        "Run `sync.py <academy> check`.",
+        "- Exit 0: nothing that a lesson is built from changed. The badge on the home page says \"In sync\".",
+        "- Exit 10: it prints the affected lessons (`lessons_from_sources`). It also prints changed files that mention a lesson id or a `mentions` phrase but are not mapped yet (`files_mentioning_lessons`).",
+        "For each affected lesson, read the actual change. For git: `git -C <academy>/source-repo diff <from>..<to> -- <file>`. Decide whether the lesson's facts changed, and edit `content/<ID>.json` as the lesson brief says. A wording change in the source often needs no lesson change. A new document may need a new lesson and a new entry in `sources.json`.",
+        "Run `build.py <academy> <changed ids>`.",
+        "Run `sync.py <academy> mark --lessons L3,L5 --note \"what changed, in one line\"`. If something failed, run `sync.py <academy> fail \"what went wrong\"`. The badge shows it, and the next check retries."
+      ],
+      "explain": "The run has a clear start and a clear end. It starts with a check and ends with `mark`, or with `fail`. In between is the only part that needs thinking: read what really changed. Often the author only improved a sentence, and the lesson stays as it is."
+    },
+    {
+      "heading": "Running sync on a schedule",
+      "body": [
+        "In the Claude desktop app, a scheduled task can do the whole run every morning.",
+        "Its prompt, in substance: run the check. If it exits 0, stop. If it exits 10, update the affected lessons following `LESSON_BRIEF.md` and `SYNC.md`, rebuild them, and mark the sync. Never push or write to the source repository. On any failure, run `sync.py <academy> fail \"<reason>\"`.",
+        "Ask the user before you create a scheduled task. It runs unattended and uses their account."
+      ],
+      "explain": "A schedule turns the routine into something nobody has to remember. But a task that runs alone acts in the user's name while nobody watches. That is the user's decision, not yours. So you offer it and wait for a yes."
+    },
+    {
+      "heading": "Videos: what they are and what they need",
+      "body": [
+        "Each lesson can have a narrated explainer video of about 2.5 minutes, drawn from the lesson's `video.scenes`. Everything is made on this computer: Chrome draws the frames, a local voice model reads the narration, ffmpeg joins them.",
+        "Videos are the heavy part of the kit. An academy is complete without them. Suggest them only when the reader wants them.",
+        "They need four tools: Google Chrome (at `/Applications/Google Chrome.app`; for another path set `CHROME_BIN`), Node 22 or newer (no packages to install), ffmpeg (`brew install ffmpeg`), and a Python with `kokoro`, `soundfile` and `numpy`.",
+        "Kokoro is the local voice. Set it up once: `python3 -m venv ~/.local/share/academy-kit/tts`, then `~/.local/share/academy-kit/tts/bin/pip install kokoro soundfile numpy`.",
+        "The build looks for that Python in `~/.local/share/academy-kit/tts`. For another place, set `\"video\": {\"python\": \"<path>/bin/python\"}` in `academy.json`, or the `ACADEMY_TTS_PYTHON` variable.",
+        "The first run downloads the Kokoro model, about 330 MB. After that, set `HF_HUB_OFFLINE=1`. The build does this by default, so set `HF_HUB_OFFLINE=0` for that first run."
+      ],
+      "explain": "A video needs a picture, a voice and something that joins the two. Chrome makes the pictures, Kokoro is the voice, and ffmpeg joins them. All three run on this computer, so the lesson text stays private here as well. The cost is setup: four tools and one download before the first video exists."
+    },
+    {
+      "heading": "Videos: turning them on, and their limits",
+      "body": [
+        "Turn videos on in `academy.json` with `\"video\": {\"enabled\": true}`. Then run `python3 <kit>/engine/build.py <academy-folder>`.",
+        "The build makes only the videos that are missing or whose `video` block changed. Name lessons to force them (`build.py <academy> L3 L5`), or use `--all-videos` for everything. One video takes 2 to 3 minutes. `--no-video` skips them.",
+        "If a tool is missing or a render fails, the build says so, skips the videos and still builds the site.",
+        "**Language.** Kokoro speaks English well and a few other languages, set with `KOKORO_LANG` or `\"lang_code\"`: `a` American English, `b` British English, `e` Spanish, `f` French, `i` Italian, `p` Portuguese. It has no German voice. For other languages, leave videos off.",
+        "**Look.** The frames use the academy's `theme` colors and `font` from `academy.json`, or the kit's defaults.",
+        "**Check the frames.** After a render, look at a few frames in `<academy>/build/<ID>/frames/`, the diagram scenes especially. A label that is too long overflows its box."
+      ],
+      "explain": "Because one video takes minutes, the build is careful: it renders a video again only when its `video` block changed. The limits are honest ones. The voice does not speak every language, the look is one brand's look, and a long label can spill out of its box. So after a render you look at a few frames, the same way you look at a lesson page after a build."
+    }
+  ],
+  "components": [
+    {
+      "name": "source (academy.json)",
+      "text": "Says where the documents are: a git repository or a folder."
+    },
+    {
+      "name": "sources.json",
+      "text": "Says which files each lesson is built from. A file outside the source is not watched. It is also the answer to \"where does this lesson come from?\""
+    },
+    {
+      "name": "source-repo",
+      "text": "The folder `<academy>/source-repo`, into which a git source is cloned once. Read-only."
+    },
+    {
+      "name": "sync.py check",
+      "text": "Looks whether the source changed. Exit 0 means nothing that a lesson is built from changed. Exit 10 means lessons are affected, and it prints them."
+    },
+    {
+      "name": "sync.py mark",
+      "text": "Closes a sync run. It takes the updated lessons (`--lessons`) and a one-line note on what changed (`--note`)."
+    },
+    {
+      "name": "sync.py fail",
+      "text": "Reports that something went wrong. The badge shows it, and the next check retries."
+    },
+    {
+      "name": "Google Chrome",
+      "text": "Draws the video frames. Expected at `/Applications/Google Chrome.app`; set `CHROME_BIN` for another path."
+    },
+    {
+      "name": "Node 22 or newer",
+      "text": "Needed for the videos. No packages to install."
+    },
+    {
+      "name": "ffmpeg",
+      "text": "Joins the frames and the narration into the video."
+    },
+    {
+      "name": "Python with kokoro, soundfile, numpy",
+      "text": "Runs Kokoro, the local voice that reads the narration. The build looks for it in `~/.local/share/academy-kit/tts`."
+    }
+  ],
+  "boundary": {
+    "owns": [
+      "Sync decides whether the source changed.",
+      "Sync decides which lessons that change touches.",
+      "Sync lists changed files that mention a lesson id or a `mentions` phrase but are not mapped yet."
+    ],
+    "not_owns": [
+      "Reading the actual change and deciding whether the lesson's facts changed (owner: a person or an agent).",
+      "Rewriting the lesson text (owner: a person or an agent).",
+      "Changing the source documents (nobody does this from the academy: a git source is read-only)."
+    ],
+    "explain": "Sync tells you where to look. It does not look for you. The judgment stays with a person or an agent: is this a new fact or only a better sentence? And the traffic goes one way only, from the documents to the lessons, never back."
+  },
+  "relationships": [
+    {
+      "with": "M1",
+      "text": "Step 5 there tells you to record each lesson's source files in `sources.json` as you go. That is what makes sync possible. Step 7 there lists all the extras, including the AI features and the always-on server."
+    },
+    {
+      "with": "M2",
+      "text": "Every lesson edit in a sync run follows the lesson brief. The `video.scenes` that the videos are drawn from are described there too."
+    },
+    {
+      "with": "M0",
+      "text": "The privacy rules there apply here as well: a git source is read-only, and nothing is pushed."
+    }
+  ],
+  "gates": [
+    {
+      "gate": "1",
+      "text": "Check: run `sync.py <academy> check`. Exit 0 ends the run. Exit 10 prints the affected lessons."
+    },
+    {
+      "gate": "2",
+      "text": "Read and edit: read the actual change, decide whether the lesson's facts changed, and edit the lesson file."
+    },
+    {
+      "gate": "3",
+      "text": "Build: run `build.py <academy> <changed ids>`."
+    },
+    {
+      "gate": "4",
+      "text": "Mark: run `sync.py <academy> mark` with the lessons and a note. If something failed, run `sync.py <academy> fail`."
+    }
+  ],
+  "example": {
+    "title": "One morning's sync run",
+    "steps": [
+      "For example, imagine an academy whose source is a git repository with a library handbook. Its `sources.json` says that lesson `L3` is built from `handbook/lending.md`.",
+      "You run `sync.py <academy> check`. It exits 10 and lists `L3` under `lessons_from_sources`.",
+      "You read the actual change with `git diff` in `source-repo`. One paragraph was reworded, and one rule is new.",
+      "The rewording needs no lesson change. The new rule does. You add it to `content/L3.json` as the lesson brief says.",
+      "You run `validate.py`, then `build.py <academy> L3`.",
+      "You run `sync.py <academy> mark --lessons L3 --note \"new rule in lending.md\"`.",
+      "On the next morning nothing changed. The check exits 0, and the badge on the home page says \"In sync\"."
+    ],
+    "explain": "The academy, the lesson and the change are made up. Look at steps 3 and 4: the file had two changes, and only one of them needed an edit. Sync pointed at the lesson. The person who read the change decided what the lesson needed."
+  },
+  "pitfalls": [
+    {
+      "text": "Never commit or push in `<academy>/source-repo`. The clone of a git source is read-only."
+    },
+    {
+      "text": "Do not rewrite a lesson for every change in its source. A wording change often needs no lesson change. Read the actual change first."
+    },
+    {
+      "text": "Do not stop after the rebuild. A sync run ends with `mark`, or with `fail` when something went wrong."
+    },
+    {
+      "text": "Do not create a scheduled task without asking the user. It runs unattended and uses their account."
+    },
+    {
+      "text": "Do not turn videos on for lessons in a language Kokoro does not speak. It has no German voice, for example. Leave videos off."
+    },
+    {
+      "text": "Do not change the kit's portal files to change one academy's look or wording. Use `labels`, `home` and `theme` in `academy.json`."
+    }
+  ],
+  "key_terms": [
+    {
+      "term": "sync",
+      "text": "The check that answers two questions without any AI: did the source change, and which lessons does that touch?",
+      "tr": "Abgleich: prüfen, ob sich die Dokumente geändert haben und welche Lektionen das betrifft"
+    },
+    {
+      "term": "source",
+      "text": "Where the documents are: a git repository or a folder. It is set in `academy.json`.",
+      "tr": "Quelle: der Ort, an dem die Dokumente liegen"
+    },
+    {
+      "term": "source-repo",
+      "text": "The read-only clone of a git source inside the academy folder.",
+      "tr": "source-repo: die schreibgeschützte Kopie des Git-Repositorys"
+    },
+    {
+      "term": "docs_root",
+      "text": "The setting of a git source that the paths in `sources.json` are relative to. For a folder source, the paths are relative to `path`.",
+      "tr": "docs_root: der Ordner im Repository, auf den sich die Pfade in sources.json beziehen"
+    },
+    {
+      "term": "shared source",
+      "text": "A file listed under `shared_sources`. When it changes, the `shared_lessons` are flagged, by default the intro lessons.",
+      "tr": "Gemeinsame Quelle: eine Datei, die für mehrere Lektionen gilt"
+    },
+    {
+      "term": "starting point",
+      "text": "The state of the documents that the first check records. The next check compares the documents with it.",
+      "tr": "Ausgangspunkt: der Stand der Dokumente beim ersten Check"
+    },
+    {
+      "term": "affected lesson",
+      "text": "A lesson that is built from a file that changed. The check prints these under `lessons_from_sources`.",
+      "tr": "Betroffene Lektion: eine Lektion, deren Quelldatei sich geändert hat"
+    },
+    {
+      "term": "badge",
+      "text": "The note on the home page that shows whether the lessons are in step with the documents.",
+      "tr": "Badge (Statusanzeige): zeigt, ob die Lektionen zum Stand der Dokumente passen"
+    },
+    {
+      "term": "mark",
+      "text": "The command that ends a sync run. It takes the updated lessons and a one-line note on what changed.",
+      "tr": "mark: der Befehl, der einen Abgleich abschließt"
+    },
+    {
+      "term": "scheduled task",
+      "text": "A task in the Claude desktop app that runs by itself, for example every morning. It runs unattended and uses the user's account.",
+      "tr": "Geplante Aufgabe: eine Aufgabe, die von selbst zu festen Zeiten läuft"
+    },
+    {
+      "term": "Kokoro",
+      "text": "The local voice that reads the narration of the videos. It speaks English well and a few other languages, but has no German voice.",
+      "tr": "Kokoro: die lokale Stimme, die den Videotext vorliest"
+    },
+    {
+      "term": "frame",
+      "text": "One picture of a video. Chrome draws the frames, and ffmpeg joins them with the narration.",
+      "tr": "Einzelbild: ein einzelnes Bild eines Videos"
+    }
+  ],
+  "quiz": [
+    {
+      "q": "`sync.py check` exits 10 and lists lesson `L5`. What do you do first?",
+      "options": [
+        "Rewrite `L5` from its source file",
+        "Run `mark` so that the badge says \"In sync\" again",
+        "Read the actual change and decide whether the lesson's facts changed",
+        "Delete `L5` and plan it again"
+      ],
+      "answer": 2,
+      "why": "Sync only says which lessons a change touches. A wording change in the source often needs no lesson change, so you read the change before you edit anything."
+    },
+    {
+      "q": "Which of these does `sync.py` not do?",
+      "options": [
+        "Rewrite the lesson text",
+        "Tell whether the source changed",
+        "Print the affected lessons",
+        "Print changed files that mention a lesson id but are not mapped yet"
+      ],
+      "answer": 0,
+      "why": "The script answers two questions without any AI: did the source change, and which lessons does that touch? Rewriting the lessons is a person's or an agent's job."
+    },
+    {
+      "q": "The source is a git repository. While you read a change in `source-repo`, you see a typo in a document. What do you do?",
+      "options": [
+        "Fix it in `source-repo` and commit",
+        "Fix it and push, because it is only a typo",
+        "Fix it in `source-repo` but do not push",
+        "Leave `source-repo` as it is. The clone is read-only."
+      ],
+      "answer": 3,
+      "why": "A git source is cloned read-only. Never commit or push there. The traffic goes from the documents to the lessons, never back."
+    },
+    {
+      "q": "A team writes its lessons in German and asks for videos. What do you say?",
+      "options": [
+        "Turn them on. Kokoro picks the language by itself.",
+        "Kokoro has no German voice, so leave videos off",
+        "Turn them on and set `KOKORO_LANG` to `b`",
+        "Videos never depend on the language"
+      ],
+      "answer": 1,
+      "why": "Kokoro speaks English well and a few other languages, but it has no German voice. For other languages, leave videos off."
+    },
+    {
+      "q": "Videos are on. You improve a sentence in one section of a lesson and do not touch its `video` block. What does the next build do?",
+      "options": [
+        "It renders every video again",
+        "It renders this lesson's video again",
+        "It rebuilds the site and renders no video for this lesson, because its `video` block did not change",
+        "It stops and asks you to pass `--all-videos`"
+      ],
+      "answer": 2,
+      "why": "The build makes only the videos that are missing or whose `video` block changed. You can force one by naming the lesson, or all with `--all-videos`."
+    },
+    {
+      "q": "A colleague wants the sync run to happen every morning by itself. What comes first?",
+      "options": [
+        "You ask the user, because a scheduled task runs unattended and uses their account",
+        "You create the scheduled task at once, because it only reads",
+        "You add a `schedule` key to `academy.json`",
+        "You turn on videos, because the schedule needs them"
+      ],
+      "answer": 0,
+      "why": "A scheduled task in the Claude desktop app can do the whole run. But you ask the user before you create one."
+    }
+  ]
+}

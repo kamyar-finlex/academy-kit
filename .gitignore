@@ -1,0 +1,31 @@
+# Built or local-only files
+site/
+build/
+source-repo/
+sync-state.json
+videos/
+__pycache__/
+*.pyc
+.DS_Store
+.env
+
+# Never part of the tool: fonts, media, documents, archives (tools/check_public.py also refuses them)
+*.woff
+*.woff2
+*.ttf
+*.otf
+*.mp4
+*.mov
+*.wav
+*.vtt
+*.pdf
+*.doc
+*.docx
+*.xls
+*.xlsx
+*.ppt
+*.pptx
+*.zip
+*.tgz
+*.tar
+*.gz

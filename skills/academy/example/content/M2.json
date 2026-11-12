@@ -1,0 +1,227 @@
+{
+  "id": "M2",
+  "name": "Writing a Lesson",
+  "tagline": "A lesson is one JSON file: a few required fields, blocks you add when the topic has them, and four ground rules that make it trustworthy.",
+  "why": "A reader will trust a lesson as much as the original document. So a lesson must say only what the sources say, in words the reader understands, and it must leave nothing out. This lesson shows you the rules and the file, field by field, so that your lessons pass the check and read well.",
+  "sections": [
+    {
+      "heading": "One lesson, one file",
+      "body": [
+        "Each lesson is one JSON file, `content/<ID>.json`, in the academy folder.",
+        "The file feeds the lesson page and, if videos are on, a narrated explainer video.",
+        "The rules for this file are in the lesson brief, `LESSON_BRIEF.md`. Give the brief to any agent that writes or updates lessons, together with the academy's own notes: who the reader is and which documents are the authority."
+      ],
+      "explain": "The brief says how every lesson is written. The academy's notes say how this academy's lessons are written. A writer needs both. With only the brief, the writer does not know the reader. With only the notes, the writer does not know the file format."
+    },
+    {
+      "heading": "The four ground rules",
+      "body": [
+        "- **Only state what the source documents say.** Teaching examples and analogies are welcome, but they must be clearly illustrative (\"for example, imagine…\"). They must not invent decisions, owners, dates or numbers.",
+        "- **When sources disagree, the academy's notes say which wins**, usually the newest. Teach that version. Do not mix wordings.",
+        "- **Plain words, short sentences, active voice**, in the academy's lesson language. Keep the documents' own terms (product names, technical terms, ids) exactly as written, because the reader will meet them again at work.",
+        "- **Coverage.** The sections together cover everything the lesson's sources say about the topic: purpose, every part, the rules, the first outcome, the conditions. A reader who finishes the lesson should not need the original to know what it says.",
+        "When a source is a long reference table with many settings or many fields, put its rows into `components`. Do not squeeze them into section bodies. If it still does not fit, split the lesson."
+      ],
+      "explain": "The first two rules protect the truth: nothing invented, nothing mixed. The third makes the lesson easy to read without changing the words the reader needs at work. The fourth makes the lesson complete. A long table is the hard case for the fourth rule. It is complete only if every row is there, and a section body is the wrong place for a long list of rows. The `components` block is a table, so it is made for that."
+    },
+    {
+      "heading": "The fields every lesson needs",
+      "body": [
+        "- `id`: the same as the file name. A short code works best, such as `L3`, `HR2` or `S01`, because readers and other lessons refer to it.",
+        "- `name`: 2 to 5 words. `tagline`: one sentence that says what the topic is.",
+        "- `sections`: 3 to 9. They are the body of the lesson. Each one has a `heading`, a `body` and an `explain` note.",
+        "- `body`: a list of 1 to 6 strings, or one string. A string that starts with a hyphen and a space is a bullet. Two stars on each side make words bold, and backticks make code.",
+        "- `why`: recommended, and shown first. In 2 to 4 sentences it says which problem the topic solves and why it matters to the reader."
+      ],
+      "explain": "These fields are the skeleton. The id and name tell the reader where they are. The tagline and the why tell them what the topic is and why they should care. The sections carry the content. Everything else in the file is a block that you add only when the topic has it."
+    },
+    {
+      "heading": "The plain-words note",
+      "body": [
+        "`sections[].explain` is the \"in plain words\" box under a section. It is recommended for every section.",
+        "It is a friendly teacher's explanation of the part above it: 2 to 6 sentences, with the why and an intuition.",
+        "It is not a repeat of the body.",
+        "This is what readers say helps most."
+      ],
+      "explain": "The body says what the documents say. The note says why it is so and how to picture it, the way a teacher would after reading a rule aloud. If your note only says the body again in other words, it adds nothing. Ask yourself: what would I say to a colleague who looks puzzled?"
+    },
+    {
+      "heading": "Blocks you add when the topic has them",
+      "body": [
+        "- `components`: if the topic has named parts. List every part the sources name, with what it does in 1 to 2 sentences.",
+        "- `boundary`: if scope matters. It says what is in scope (`owns`), what is out (`not_owns`), and who owns what is out.",
+        "- `relationships`: if the topic works with other things. `with` can name another lesson by id. It then becomes a link.",
+        "- `gates`: if there are milestones, phases or stages. `gate` is a short code.",
+        "- `example`: recommended. One worked example with 4 to 8 steps. `pitfalls`: recommended. 3 to 6 rules that are easy to get wrong.",
+        "Blocks you leave out are not shown. The block titles are the academy's `labels` in `academy.json`. So one academy can call them \"Components\" and \"Roadmap by gate\", and another \"Roles\" and \"Phases\"."
+      ],
+      "explain": "Not every topic has parts, a scope or milestones. A block that is forced onto a topic reads badly, so the file lets you leave it out. The field names stay the same in every academy. Only the titles on the page change, and those come from the academy's labels."
+    },
+    {
+      "heading": "Key terms and the quiz",
+      "body": [
+        "- `key_terms`: recommended, 6 to 12. Each one has a `term` and a `text`, the definition. They feed the glossary, the mind maps and the translate popup.",
+        "- When the academy has a reader language, add `tr`: the term in that language, then a short gloss if it helps, as in \"Sperrfrist: Zeit, in der nichts geändert werden darf\". It is shown in the translate popup, not on the lesson page.",
+        "- `quiz`: recommended, 5 to 8 questions. Each one has `q`, `options`, `answer` and `why`.",
+        "- Test understanding, not recall of wording. Spread the right answers across positions. `answer` is 0-based."
+      ],
+      "explain": "Key terms do more than fill a list at the end. The portal uses them when a reader selects a word, opens a mind map or looks at the glossary. In the quiz, 0-based means that counting starts at zero: the first option is 0 and the second is 1. A good question asks what the reader would do, not which words the lesson used."
+    },
+    {
+      "heading": "Codes that repeat",
+      "body": [
+        "Some documents use codes that come back again and again: decisions such as `R12`, gates such as `P0`, requirements such as `REQ-12`.",
+        "Write them exactly as the documents do, everywhere.",
+        "The portal finds every code that appears in more than one lesson, underlines it, and opens a mind map of every place it is used.",
+        "That only works when the spelling is identical."
+      ],
+      "explain": "The portal does not understand codes. It compares letters. If two lessons spell a code in two ways, the portal sees two different things, and the reader loses the link between them. So copy the spelling from the documents and never tidy it up."
+    },
+    {
+      "heading": "The optional video block",
+      "body": [
+        "Leave the `video` key out if the academy has no videos.",
+        "With videos, the total narration is 280 to 380 words (about 2.5 minutes), in 6 to 9 scenes and 18 to 30 segments. Every scene has a `kind`, a `heading` of at most 6 words that is shown on screen, and `segments`. A segment has a `say`, the sentence, and a `focus`, the index of the item on screen that the sentence is about.",
+        "**Show, don't list.** Use at least three visual scenes from `diagram`, `layers`, `timeline`, `flow` and `split`, and at most two plain `bullets` scenes besides the closing recap. Prefer a `diagram` whenever the narration talks about things that talk to each other.",
+        "The kinds: `title` is always scene 1, with the heading \"<ID> · <name>\" and the tagline. `diagram` shows how parts connect. `layers` shows what sits on what. `timeline` shows milestones and lifecycles. `flow` shows an ordered process. `split` shows in scope against out of scope, or do against don't. `cards` shows a set of peers. `bullets` is for the closing recap and little else.",
+        "The sizes: a `diagram` has up to 4 columns and 3 rows and at most 8 nodes. Its labels have at most 3 words, a `sub` at most 5, and edge labels 1 to 2. `layers` takes 2 to 4 layers with at most 5 short chips each, `timeline` 3 to 6 items, `flow` 3 to 5 steps, `cards` 2 to 9 and `bullets` 2 to 5.",
+        "Narration is read by a text-to-speech voice: one sentence per segment, 8 to 28 words. Spell ids and acronyms the way they are spoken (\"L three\", \"P one\", \"A P I\"), write numbers as words, and use no symbols such as \"&\", \"/\", \"→\", parentheses or quotes. Captions are made from `say` automatically. Screen text uses normal spelling."
+      ],
+      "explain": "A video is a second way to tell the same lesson, to the eye and the ear. The eye wants pictures, so most scenes are diagrams, layers, timelines or flows, not lists. The ear hears a machine voice. That voice reads exactly what you write, so you write the words the way a person would say them."
+    },
+    {
+      "heading": "Before you call a lesson done",
+      "body": [
+        "Run `python3 <kit>/engine/validate.py <academy-folder> L3`, with your lesson's id in place of `L3`.",
+        "Errors must be fixed. Read the warnings: they are things a reader would miss.",
+        "Then build and look at the page.",
+        "Older lesson files use suffixed names, such as `name_en` and `body_en`. They still build. New files use the names in this lesson."
+      ],
+      "explain": "The check finds what a script can find, such as a missing field. It cannot tell whether the lesson is true to its sources or pleasant to read. That is why the last step is to look at the page yourself."
+    }
+  ],
+  "components": [
+    { "name": "id", "text": "Required. The same as the file name. A short code works best." },
+    { "name": "name, tagline", "text": "Required. `name` has 2 to 5 words. `tagline` is one sentence that says what the topic is." },
+    { "name": "why", "text": "Recommended. Shown first: 2 to 4 sentences on the problem the topic solves and why it matters to the reader." },
+    { "name": "sections", "text": "Required, 3 to 9. The body of the lesson. Each has a `heading` and a `body` of 1 to 6 strings, or one string." },
+    { "name": "sections[].explain", "text": "Recommended. The \"in plain words\" box: a friendly teacher's explanation in 2 to 6 sentences." },
+    { "name": "components", "text": "If the topic has named parts. Every part the sources name, each with a `name` and a `text`." },
+    { "name": "boundary", "text": "If scope matters. `owns`, `not_owns` and an `explain` note." },
+    { "name": "relationships", "text": "If the topic works with other things. Each has `with` and `text`. `with` can name another lesson by id." },
+    { "name": "gates", "text": "If there are milestones, phases or stages. Each has a `gate`, a short code, and a `text`." },
+    { "name": "example", "text": "Recommended. One worked example: a `title`, 4 to 8 `steps` and an `explain` note that walks through it." },
+    { "name": "pitfalls", "text": "Recommended, 3 to 6. Rules that are easy to get wrong." },
+    { "name": "key_terms", "text": "Recommended, 6 to 12. Each has `term`, `text` and, with a reader language, `tr`: the term in that language, then a short gloss if it helps. `tr` is shown in the translate popup, not on the lesson page." },
+    { "name": "quiz", "text": "Recommended, 5 to 8. Each has `q`, `options`, `answer` (0-based) and `why`." },
+    { "name": "video", "text": "Optional. The scenes of the narrated video. Leave the key out if the academy has no videos." }
+  ],
+  "relationships": [
+    { "with": "M1", "text": "This lesson is step 5 of making an academy in detail. The lesson plan and `ACADEMY_NOTES.md` from M1 come first." },
+    { "with": "K1", "text": "When the documents change, you edit lesson files by the same rules. K1 also covers what the videos need." },
+    { "with": "LESSON_BRIEF.md", "text": "The kit's file that holds these rules. Read it before you write any lesson." }
+  ],
+  "example": {
+    "title": "Writing lesson L3",
+    "steps": [
+      "For example, imagine the lesson plan has a lesson `L3` named \"Lending & Returns\". You create `content/L3.json` and set `id` to `L3`.",
+      "You read the lesson's source files and the academy's notes. Two files disagree on one point. The notes say the newest wins, so you teach that version only.",
+      "You write the `tagline` in one sentence and the `why` in 2 to 4 sentences.",
+      "You write sections until they cover everything the sources say about the topic. Under each one you add an `explain` note that gives the why, not a repeat.",
+      "The topic has named parts and milestones, so you add `components` and `gates`. Scope does not matter here, so you leave `boundary` out, and the page shows no such block.",
+      "You add key terms with `tr`, because this academy has a reader language, and a quiz whose right answers sit in different positions.",
+      "You run `validate.py` for `L3`, fix the errors, read the warnings, build, and look at the page."
+    ],
+    "explain": "The lesson `L3` and its topic are made up. The order is the point: sources and notes first, then the skeleton, then the blocks that fit, then the check. Nothing was added that the sources do not say, and nothing the sources say was left out."
+  },
+  "pitfalls": [
+    { "text": "Do not let an example invent facts. It must be clearly illustrative, and it must not invent decisions, owners, dates or numbers." },
+    { "text": "Do not mix wordings when sources disagree. Teach the version that the academy's notes say wins." },
+    { "text": "Do not replace the documents' own terms with nicer ones. The reader will meet the original terms again at work." },
+    { "text": "Do not repeat the body in the `explain` note. Give the why and an intuition." },
+    { "text": "`answer` is 0-based: the first option is 0. And do not put every right answer in the same position." },
+    { "text": "Do not spell a code in two ways, for example `R12` in one lesson and `D-7` in another. The mind map only works when the spelling is identical." }
+  ],
+  "key_terms": [
+    { "term": "lesson brief", "text": "The kit's file `LESSON_BRIEF.md`. It says how to write one lesson and is given to every agent that writes or updates lessons.", "tr": "Lektionsleitfaden: die Anleitung zum Schreiben einer Lektion" },
+    { "term": "ground rules", "text": "The four rules that make a lesson trustworthy: only what the sources say, the winning version when sources disagree, plain words, and coverage.", "tr": "Grundregeln: die vier Regeln für eine verlässliche Lektion" },
+    { "term": "coverage", "text": "The sections together cover everything the lesson's sources say about the topic.", "tr": "Abdeckung: die Lektion enthält alles, was die Quellen zum Thema sagen" },
+    { "term": "tagline", "text": "One sentence that says what the topic is.", "tr": "Kurzbeschreibung: ein Satz, der das Thema benennt" },
+    { "term": "section", "text": "One part of the body of a lesson, with a heading, a body and a plain-words note. A lesson has 3 to 9.", "tr": "Abschnitt: ein Teil des Haupttexts einer Lektion" },
+    { "term": "explain note", "text": "The field `explain`: the \"in plain words\" box under a section, with the why and an intuition.", "tr": "Erklärnotiz: die Erklärung in einfachen Worten unter einem Abschnitt" },
+    { "term": "boundary", "text": "The block that says what is in scope, what is out, and who owns what is out.", "tr": "Abgrenzung: was dazugehört, was nicht, und wem das Übrige gehört" },
+    { "term": "gate", "text": "A milestone, phase or stage, written with a short code.", "tr": "Gate: ein Meilenstein, eine Phase oder eine Stufe" },
+    { "term": "worked example", "text": "One example that walks through the topic in 4 to 8 steps.", "tr": "Ausgearbeitetes Beispiel: ein Beispiel Schritt für Schritt" },
+    { "term": "pitfall", "text": "A rule that is easy to get wrong.", "tr": "Stolperfalle: eine Regel, die man leicht falsch macht" },
+    { "term": "key term", "text": "A term with its definition. Key terms feed the glossary, the mind maps and the translate popup.", "tr": "Schlüsselbegriff: ein wichtiger Begriff mit Definition" },
+    { "term": "0-based", "text": "Counting starts at zero. In a quiz, `answer` 0 means the first option.", "tr": "nullbasiert: die Zählung beginnt bei 0" }
+  ],
+  "quiz": [
+    {
+      "q": "The sources do not say who owns a task. Your worked example would read better with an owner. What do you do?",
+      "options": [
+        "Name the most likely team as the owner",
+        "Keep the example clearly illustrative and do not invent an owner",
+        "Leave the whole example out",
+        "Add an owner and mark it with a question mark"
+      ],
+      "answer": 1,
+      "why": "Examples are welcome, but they must be clearly illustrative and must not invent decisions, owners, dates or numbers. The reader trusts the lesson as much as the original."
+    },
+    {
+      "q": "A section lists three rules. Which `explain` note fits best?",
+      "options": [
+        "The three rules again, in other words",
+        "A fourth rule that the sources do not have",
+        "The three rules in the reader's language",
+        "Why the rules exist, and a way to picture them"
+      ],
+      "answer": 3,
+      "why": "The note is a friendly teacher's explanation with the why and an intuition. It is not a repeat of the body, and it adds no facts of its own."
+    },
+    {
+      "q": "A quiz question has four options. The third one is right. What do you write in `answer`?",
+      "options": [
+        "3",
+        "The text of the third option",
+        "2",
+        "1"
+      ],
+      "answer": 2,
+      "why": "`answer` is 0-based. The first option is 0, so the third option is 2."
+    },
+    {
+      "q": "Your topic has no milestones, phases or stages. What do you do with `gates`?",
+      "options": [
+        "Leave it out. Blocks you leave out are not shown.",
+        "Add one gate named \"none\"",
+        "Add an empty list, because the field is required",
+        "Use it for the key terms instead"
+      ],
+      "answer": 0,
+      "why": "`gates` is only for topics with milestones, phases or stages. A block that you leave out is not shown on the page."
+    },
+    {
+      "q": "Two source files describe the same rule with different wording and a different limit. What does the lesson say?",
+      "options": [
+        "Both versions, side by side",
+        "A mix of both wordings",
+        "Nothing about this rule",
+        "The version that the academy's notes say wins, usually the newest"
+      ],
+      "answer": 3,
+      "why": "When sources disagree, the academy's notes say which wins. Teach that version and do not mix wordings."
+    },
+    {
+      "q": "One lesson writes `REQ-12` and another writes `Req 12` for the same requirement. What is the effect?",
+      "options": [
+        "The portal cannot link the two, because it only works when the spelling is identical",
+        "The build stops with an error",
+        "Nothing. The portal treats them as the same code.",
+        "The quiz of both lessons is hidden"
+      ],
+      "answer": 0,
+      "why": "The portal finds a code by its exact spelling. Write every code exactly as the documents do, everywhere."
+    }
+  ]
+}

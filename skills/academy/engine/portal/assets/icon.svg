@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Academy Kit">
+  <title>Academy Kit</title>
+  <!-- The letter A drawn as a small graph: ideas are remembered as nodes and the links between them. -->
+  <rect width="128" height="128" rx="28" fill="#1F2937"/>
+  <g fill="none" stroke="#F8FAFC" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M31 99 L64 30 L97 99"/>
+    <path d="M45.5 69 H82.5"/>
+  </g>
+  <circle cx="31" cy="99" r="10" fill="#F8FAFC"/>
+  <circle cx="97" cy="99" r="10" fill="#F8FAFC"/>
+  <circle cx="45.5" cy="69" r="7.5" fill="#60A5FA"/>
+  <circle cx="82.5" cy="69" r="7.5" fill="#60A5FA"/>
+  <circle cx="64" cy="30" r="13" fill="#3B82F6" stroke="#1F2937" stroke-width="4"/>
+</svg>

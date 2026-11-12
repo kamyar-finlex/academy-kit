@@ -1,0 +1,288 @@
+{
+  "id": "M0",
+  "name": "What an Academy Is",
+  "tagline": "An academy is a small private website that teaches a set of documents. A shared kit builds it from a folder that you own.",
+  "why": "Before you make an academy, you need a picture of what you will end up with and which part of it is yours. This lesson gives you that picture: the two parts, what the reader gets, where the AI answers come from, and what stays private. The other three lessons build on it.",
+  "sections": [
+    {
+      "heading": "What an academy is",
+      "body": [
+        "An academy is a small website that someone reads to learn a set of documents properly.",
+        "The documents can be a docs folder, a git repo, handbooks, design docs, policies, process descriptions or specs.",
+        "The website has one lesson per topic. Around the lessons it has four helpers: Translate, Visualize, Mind map and Ask."
+      ],
+      "explain": "Think of a colleague who has read all the documents and now teaches them to you, one topic at a time. The academy is that colleague as a website. It does not replace the documents. It makes them easier to learn."
+    },
+    {
+      "heading": "Two parts that never mix",
+      "body": [
+        "An academy has two parts.",
+        "- **The kit**: the skill's folder. It holds the portal and the build, serve, check and sync scripts. It is the same for everyone.",
+        "- **An academy folder**: the user's own folder. It holds `academy.json` (title, groups, languages, wording) and `content/<ID>.json` (one file per lesson). This is the only thing you write.",
+        "In the documents, `<kit>` means the skill's folder, the one that holds `SKILL.md`.",
+        "The scripts need only Python 3.9 or newer. They need no packages."
+      ],
+      "explain": "The kit is the tool and the academy folder is the content. Because nobody's documents or lessons are inside the kit, colleagues can share the kit freely. Each team keeps its own academy folder where its documents belong."
+    },
+    {
+      "heading": "What the reader gets",
+      "body": [
+        "Each lesson has: why the topic matters, sections with an \"in plain words\" note under each, parts, scope, a worked example, easy-to-get-wrong rules, key terms and a quiz. The browser remembers progress and quiz scores.",
+        "- **Translate / Explain**: select a word and get it in your own language, or in simpler words, in the context of that sentence.",
+        "- **Visualize**: select a paragraph and get it as boxes and arrows.",
+        "- **Mind map**: select a term, or click an underlined code such as `R12`, and see every place the lessons use it, grouped by idea. The source sentences are one click away.",
+        "- **Ask**: ask a question about a selection or a term. The answer comes only from the lesson text and shows its sources.",
+        "Optional: a narrated video of about 2.5 minutes per lesson, and a badge that shows whether the lessons are in step with the documents."
+      ],
+      "explain": "The lesson text does the teaching. The four helpers remove small blocks while you read: a word you do not know, a paragraph you cannot picture, a term you keep meeting. The mind map matters most, because people remember relations, not lists. It saves you from flipping back through the lessons."
+    },
+    {
+      "heading": "A local model answers",
+      "body": [
+        "The four AI features run on a local model through Ollama.",
+        "Without Ollama the academy still works. Those buttons then report that the model is not answering.",
+        "Nothing is sent to an outside service. That is what makes an academy safe for internal documents."
+      ],
+      "explain": "A local model is an AI model that runs on your own computer. Your selection and your question go to that model and nowhere else. For these four features, Ollama must be running on the computer with a model installed. The lessons, the quiz and your progress do not need it."
+    },
+    {
+      "heading": "Private by default",
+      "body": [
+        "Treat the documents and the built site as private to the user.",
+        "- Keep everything on their machine. Do not upload, publish, push or share the academy, its lessons or the documents unless they ask in so many words.",
+        "- A git source is cloned read-only. Never commit or push there.",
+        "- The portal's AI calls go to the local Ollama only. Do not point `ai` at an outside service unless the user asks for that."
+      ],
+      "explain": "The documents are often internal: handbooks, policies, design notes. So the safe default is that nothing leaves the computer. If someone wants to share an academy, they must say so clearly. A guess is not enough."
+    }
+  ],
+  "components": [
+    {
+      "name": "engine/init.py",
+      "text": "Starts an academy folder."
+    },
+    {
+      "name": "engine/validate.py",
+      "text": "Checks lesson files."
+    },
+    {
+      "name": "engine/build.py",
+      "text": "Builds the site, and the videos if they are on."
+    },
+    {
+      "name": "engine/serve.py",
+      "text": "Serves the site locally with the AI features."
+    },
+    {
+      "name": "engine/sync.py",
+      "text": "Answers two questions: did the source change, and which lessons does that touch?"
+    },
+    {
+      "name": "engine/portal/, engine/video/",
+      "text": "The website and the video renderer. Every academy shares them."
+    },
+    {
+      "name": "engine/docker/",
+      "text": "An optional always-on server."
+    },
+    {
+      "name": "references/LESSON_BRIEF.md",
+      "text": "How to write a lesson. Read it before you write any."
+    },
+    {
+      "name": "references/CONFIG.md",
+      "text": "Every `academy.json` setting."
+    },
+    {
+      "name": "references/VIDEO.md, references/SYNC.md",
+      "text": "The two extras: videos and sync."
+    },
+    {
+      "name": "example/",
+      "text": "A small finished academy to look at or copy from."
+    }
+  ],
+  "boundary": {
+    "owns": [
+      "The kit: the portal (the website) that every academy shares.",
+      "The kit: the scripts that start, check, build, serve and sync an academy.",
+      "The kit: the reference files that say how to write lessons and settings."
+    ],
+    "not_owns": [
+      "The documents (owner: the user).",
+      "`academy.json`: title, groups, languages and wording (owner: the user, in the academy folder).",
+      "`content/<ID>.json`: the lessons (owner: the user, in the academy folder)."
+    ],
+    "explain": "The kit never holds your content, and your academy folder never holds the kit. When you want to change what a lesson says, you edit the academy folder. You change the kit only for something every academy should get."
+  },
+  "relationships": [
+    {
+      "with": "M1",
+      "text": "Takes you through the seven steps that make an academy, including the `academy.json` settings."
+    },
+    {
+      "with": "M2",
+      "text": "Shows how one lesson file is written and which rules make it trustworthy."
+    },
+    {
+      "with": "K1",
+      "text": "Shows how to change an academy later, keep it in step with the documents, and add the extras."
+    }
+  ],
+  "example": {
+    "title": "A reader uses an academy",
+    "steps": [
+      "For example, imagine a new colleague who must learn a library handbook. Her own language is German and the handbook is in English.",
+      "She opens the academy in her browser and starts with the first lesson of a group.",
+      "She meets a word she does not know. She selects it and presses Translate. She gets the word in German, in the context of that sentence.",
+      "A paragraph describes who hands what to whom. She selects it and presses Visualize. She sees it as boxes and arrows.",
+      "The code `R12` is underlined, because several lessons use it. She clicks it and sees a mind map of every place the lessons use it.",
+      "She answers the quiz at the end. The browser remembers her score and her progress."
+    ],
+    "explain": "Nothing in this story left her computer. The lesson text was written before she came. The translation, the diagram and the mind map came from the local model. The handbook, the colleague and the code are made up for this example."
+  },
+  "pitfalls": [
+    {
+      "text": "The kit is public, an academy is private. A lesson restates its source, so the settings, lessons, built site and videos are as confidential as the documents. Never put an academy inside the kit or in a public repository, and never write a password or token into `academy.json`."
+    },
+    {
+      "text": "Never put your academy folder inside the kit. The kit's own `example/` folder is the one finished academy that ships with it."
+    },
+    {
+      "text": "Do not write your content into the kit. The academy folder is the only thing you write."
+    },
+    {
+      "text": "Do not expect the AI buttons to answer without Ollama. The lessons still work, but those buttons report that the model is not answering."
+    },
+    {
+      "text": "Do not upload, publish, push or share an academy because it seems helpful. Do it only when the user asks in so many words."
+    },
+    {
+      "text": "Do not point `ai` at an outside service on your own. The AI calls go to the local Ollama only."
+    }
+  ],
+  "key_terms": [
+    {
+      "term": "academy",
+      "text": "A small website that someone reads to learn a set of documents properly.",
+      "tr": "Academy: eine kleine Lern-Website zu einer Sammlung von Dokumenten"
+    },
+    {
+      "term": "kit",
+      "text": "The skill's folder: the portal and the build, serve, check and sync scripts. It is the same for everyone.",
+      "tr": "Kit (Werkzeugsatz): das gemeinsame Werkzeug, für alle gleich"
+    },
+    {
+      "term": "academy folder",
+      "text": "The user's own folder with `academy.json` and one `content/<ID>.json` file per lesson. It is the only thing you write.",
+      "tr": "Academy-Ordner: der eigene Ordner mit Einstellungen und Lektionen"
+    },
+    {
+      "term": "lesson",
+      "text": "One topic of the documents, written as one file, with plain-words notes, a worked example, key terms and a quiz.",
+      "tr": "Lektion: ein Thema der Dokumente, in einer Datei"
+    },
+    {
+      "term": "portal",
+      "text": "The website part of the kit that shows the lessons. Every academy shares it.",
+      "tr": "Portal: die Website, die die Lektionen anzeigt"
+    },
+    {
+      "term": "plain-words note",
+      "text": "The \"in plain words\" note under each section of a lesson.",
+      "tr": "Erklärung in einfachen Worten: die Notiz unter jedem Abschnitt"
+    },
+    {
+      "term": "Translate",
+      "text": "Select a word and get it in your own language, in the context of that sentence. Without a reader language it is called Explain and gives simpler words.",
+      "tr": "Übersetzen: ein markiertes Wort in der eigenen Sprache erhalten"
+    },
+    {
+      "term": "Visualize",
+      "text": "Select a paragraph and get it as boxes and arrows.",
+      "tr": "Visualisieren: einen Absatz als Kästen und Pfeile sehen"
+    },
+    {
+      "term": "Mind map",
+      "text": "A view of every place the lessons use a term or code, grouped by idea, with the source sentences one click away.",
+      "tr": "Mindmap: alle Stellen, an denen ein Begriff vorkommt, nach Ideen geordnet"
+    },
+    {
+      "term": "Ask",
+      "text": "A question about a selection or a term, answered only from the lesson text, with its sources.",
+      "tr": "Fragen: eine Frage stellen, beantwortet nur aus dem Lektionstext"
+    },
+    {
+      "term": "local model",
+      "text": "The AI model that answers the four AI features. It runs on this computer through Ollama, so nothing is sent to an outside service.",
+      "tr": "Lokales Modell: ein KI-Modell, das auf dem eigenen Rechner läuft"
+    },
+    {
+      "term": "Ollama",
+      "text": "The program that runs the local model. Without it the academy still works, but the AI buttons do not answer.",
+      "tr": "Ollama: das Programm, das das lokale Modell ausführt"
+    },
+    {
+      "term": "public check",
+      "text": "`tools/check_public.py` in the kit's repository. It fails when the repository holds an academy, media, documents, a secret, an e-mail address or a word on your private list.",
+      "tr": "Öffentlichkeitsprüfung: Skript, das verhindert, dass Privates ins öffentliche Repository gelangt"
+    }
+  ],
+  "quiz": [
+    {
+      "q": "A colleague asks where to put the lessons she writes. What do you tell her?",
+      "options": [
+        "Into the kit's `engine` folder, next to the scripts",
+        "Into `content/` in her own academy folder",
+        "Into the kit's `references` folder",
+        "Anywhere, the kit finds them by itself"
+      ],
+      "answer": 1,
+      "why": "The academy folder is the user's own folder and the only thing you write. Each lesson is one file, `content/<ID>.json`. The kit stays the same for everyone."
+    },
+    {
+      "q": "Why can colleagues share the kit without sharing their documents?",
+      "options": [
+        "Because the kit encrypts the lessons",
+        "Because the kit deletes the documents after the build",
+        "Because lessons are stored on a shared server",
+        "Because nobody's documents or lessons are inside the kit"
+      ],
+      "answer": 3,
+      "why": "The kit and the academy folder never mix. The content lives only in the academy folder."
+    },
+    {
+      "q": "Ollama is not running. What happens when a reader opens the academy?",
+      "options": [
+        "The lessons and the quiz work. The AI buttons report that the model is not answering.",
+        "The site does not open at all.",
+        "The site sends the questions to an outside service instead.",
+        "The quiz is hidden until Ollama starts."
+      ],
+      "answer": 0,
+      "why": "Without Ollama the academy still works. Only the four AI features need the local model, and nothing is sent to an outside service."
+    },
+    {
+      "q": "A reader keeps meeting the same term in different lessons and has to flip back. Which feature is made for this?",
+      "options": [
+        "Visualize",
+        "The quiz",
+        "Mind map",
+        "The sync badge"
+      ],
+      "answer": 2,
+      "why": "The mind map shows every place the lessons use a term or code, grouped by idea. People remember relations, not lists."
+    },
+    {
+      "q": "You finished an academy and think the whole team would like it. The user has not said anything about sharing. What do you do?",
+      "options": [
+        "Publish it, because it is only lessons and not the documents",
+        "Push it to the git source so that everyone gets it",
+        "Keep it on their machine and leave sharing to them, unless they ask for it in so many words",
+        "Upload only the built site, not the academy folder"
+      ],
+      "answer": 2,
+      "why": "The documents and the built site are private to the user. Do not upload, publish, push or share them unless the user asks in so many words. A git source is read-only: never commit or push there."
+    }
+  ]
+}

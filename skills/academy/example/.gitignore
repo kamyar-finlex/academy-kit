@@ -1,0 +1,4 @@
+site/
+build/
+source-repo/
+sync-state.json

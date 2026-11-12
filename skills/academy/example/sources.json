@@ -1,0 +1,9 @@
+{
+  "shared_sources": [],
+  "lessons": {
+    "M0": { "sources": [] },
+    "M1": { "sources": ["CONFIG.md"] },
+    "M2": { "sources": ["LESSON_BRIEF.md"] },
+    "K1": { "sources": ["SYNC.md", "VIDEO.md"] }
+  }
+}

@@ -1,0 +1,4 @@
+#!/bin/sh
+# Refuse a commit that would put anything private into this public repository.
+# Turn it on once per clone:  git config core.hooksPath .githooks
+exec python3 "$(git rev-parse --show-toplevel)/tools/check_public.py" --staged

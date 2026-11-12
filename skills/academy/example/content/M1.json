@@ -1,0 +1,373 @@
+{
+  "id": "M1",
+  "name": "Making an Academy",
+  "tagline": "Seven steps take you from a set of documents to a built academy that you have checked in a browser.",
+  "why": "The steps have an order for a reason. The lesson plan decides everything after it. It is cheap to change before the lessons are written and expensive later. When you know what each step is for, you do not skip the ones that look optional: reading everything first, waiting for agreement, and looking at the result yourself.",
+  "sections": [
+    {
+      "heading": "Steps 1 and 2: ask, then create the folder",
+      "body": [
+        "Find out three things, from the conversation or by asking briefly.",
+        "- **Which documents**, and which win when they disagree. Usually the newest wins.",
+        "- **Who reads it**: what they already know, and their own language if the documents are not in it. A reader language turns on Translate.",
+        "- **Where the academy folder should live.** The default is next to the documents, named `<topic>-academy`. Not inside the kit. The bundled `example/` is the one exception.",
+        "Do not ask about videos or sync up front. Offer them at the end.",
+        "Then create the folder: `python3 <kit>/engine/init.py <academy-folder> --title \"…\" --docs <folder-or-git-url> --reader German`. `--docs` and `--reader` are optional. `--docs` records where the documents are, as the `source` block in `academy.json`. The home page then shows a \"not checked yet\" sync note until you set sync up or remove that block."
+      ],
+      "explain": "These three answers shape every lesson. The documents say what is true. The reader says how simply you must write and whether a second language is needed. The folder says where the result lives. Videos and sync can wait, because an academy can be made without them and the user can decide once they see it."
+    },
+    {
+      "heading": "Step 3: read everything, then propose a lesson plan",
+      "body": [
+        "Read everything in scope before you plan. A plan made from file names misses what the documents actually spend their words on.",
+        "Then propose a short table in the chat: lesson id, name, one line on what it covers, and which files it comes from.",
+        "- One lesson per topic that a person would ask about by name, not one per file. 5 to 20 lessons is typical.",
+        "- Give lessons short code ids, such as `L3` or `HR2`. If the documents already number things, use their numbers. Then the lesson id is the name people use at work.",
+        "- Group lessons the way the documents are organized, in 2 to 4 groups. An overview lesson per group, such as `L0`, helps: it is where a reader starts.",
+        "- Note the codes that repeat across the documents: decisions, phases, requirement numbers. They become the clickable mind-map codes."
+      ],
+      "explain": "A file name tells you what the author called a file. It does not tell you what the file spends its words on. One long file may hold three topics, and three short files may hold one. That is why you read first and plan second. Then wait for the user to agree to the plan. It decides everything after it."
+    },
+    {
+      "heading": "Step 4: fill in academy.json and write the notes",
+      "body": [
+        "`academy.json` is one file per academy. It holds everything that is specific to that academy, so the kit itself stays the same for everyone. Only `title` is required.",
+        "Read `<kit>/references/CONFIG.md`. Set at least `title`, `subtitle`, `domain`, `groups` and `home`. Set `labels` where the generic block titles do not fit the subject. An HR academy wants \"Roles\" and \"Phases\", not \"Parts\" and \"Milestones\".",
+        "If there is a reader language, write `reader.example` in that language. Without it, a small model translates the whole sentence instead of the selected word.",
+        "Write `<academy-folder>/ACADEMY_NOTES.md`: who the reader is, the authority order of the documents, the lesson plan, and any wording rules, such as \"keep product names in English\".",
+        "Every agent that touches this academy later reads the notes first."
+      ],
+      "explain": "The settings file tells the kit how this one academy looks and behaves. The notes tell people and agents how this one academy is written. Several agents may write the lessons, and others touch the academy later. Because each of them reads the notes first, the tenth lesson sounds like the first."
+    },
+    {
+      "heading": "What goes into academy.json",
+      "body": [
+        "The settings fall into four families. The table \"Parts\" below lists every setting with its default.",
+        "- **Who it is for**: `title`, `subtitle`, `logo`, `id`, `storage`, `domain`, `language`, `reader`.",
+        "- **Structure**: `groups`, `lesson_order`, `codes`, and the folders `content`, `out` and `build`.",
+        "- **Wording and look**: `home`, `labels`, `theme`.",
+        "- **Features**: `ai`, `video`, `source`."
+      ],
+      "explain": "Most academies need only a few of these. Three deserve care. `domain` is a few words on the subject. It goes into the AI prompts, and that makes diagrams and mind maps noticeably better. `reader` turns Explain into Translate, so the popup shows the word in the reader's language. `groups` decides what the reader sees in the sidebar and on the home page, and in which order."
+    },
+    {
+      "heading": "Step 5: write the lessons",
+      "body": [
+        "Read `<kit>/references/LESSON_BRIEF.md` first. It has the file format and the rules that make a lesson trustworthy: only what the sources say, plain words, full coverage.",
+        "- Write one lesson yourself first and build it. Problems with the plan then show up early.",
+        "- For the rest, when subagents are available, give each lesson to one subagent. It gets the brief, `ACADEMY_NOTES.md`, the lesson's row from the plan, its source files, and the finished first lesson as a model. Run them in parallel.",
+        "- Exactly one agent writes each file. Two writers on the same lesson silently overwrite each other.",
+        "- Record each lesson's source files in `sources.json` as you go. It costs a line now and is what makes sync possible later."
+      ],
+      "explain": "The first lesson is a test of the plan. If it is hard to write, or it comes out too thin or too long, the plan may be wrong, and you can still change it cheaply. The first lesson also becomes the model for the others. A subagent that sees a finished lesson can follow its tone and depth."
+    },
+    {
+      "heading": "Step 6: check, build, look",
+      "body": [
+        "Run three commands in this order: `python3 <kit>/engine/validate.py <academy-folder>`, then `python3 <kit>/engine/build.py <academy-folder>`, then `python3 <kit>/engine/serve.py <academy-folder> --open`.",
+        "The build refuses to run on errors. It prints warnings for things a reader would miss.",
+        "`serve.py` serves the site on this computer only and passes the AI requests to Ollama. The default port is 8765. Change it with `--port`.",
+        "Opening `index.html` straight from disk does not work, because the AI features need the server.",
+        "Then look at it in a browser yourself before you say it is done: the home page, one lesson top to bottom, one quiz answer, and, if Ollama is running, a translation, a diagram and a mind map of a repeated term. Check the browser console for errors.",
+        "A lesson that validates can still read badly. Skim each one once."
+      ],
+      "explain": "The scripts check the form of a lesson: is the file complete and can the site show it? They cannot check whether the lesson reads well. Only a person or an agent who reads it can. So the step is not finished when the build is clean. It is finished when you have seen the pages."
+    },
+    {
+      "heading": "Step 7: offer the extras",
+      "body": [
+        "- **AI features**: they need Ollama running and one of the models in `ai.models` installed (`ollama pull <model>`). Say so if it is missing. Do not install it unasked.",
+        "- **Videos**: heavy. They take 2 to 3 minutes per lesson and need extra tools. Offer, do not assume.",
+        "- **Sync**: worth it when the documents are still changing.",
+        "- **Always on**: `<kit>/engine/docker/` has a Docker Compose file that serves the site permanently on localhost."
+      ],
+      "explain": "The extras come last because the lessons are the main thing. Each extra costs something: an installed model, extra tools and time, or a regular check. So you offer them, and the user decides. K1 explains videos and sync in detail."
+    }
+  ],
+  "components": [
+    {
+      "name": "title, subtitle, logo",
+      "text": "The top bar. `title` is required. `subtitle` is empty by default. `logo` is the first letter by default."
+    },
+    {
+      "name": "id",
+      "text": "Names this academy. Default: the folder name. Each reader's progress, saved words and diagrams are kept in the browser under it."
+    },
+    {
+      "name": "storage",
+      "text": "Default: the `id`. Set it only to keep readers' saved progress after you rename `id`."
+    },
+    {
+      "name": "domain",
+      "text": "A few words on the subject. Default: \"internal company\". It goes into the AI prompts, which makes diagrams and mind maps noticeably better."
+    },
+    {
+      "name": "language",
+      "text": "The language the lessons are written in. Default: English."
+    },
+    {
+      "name": "reader",
+      "text": "The reader's own language, when it differs. Default: none. It turns Explain into Translate: the popup shows the word in that language, what it means in the sentence, and a simpler wording."
+    },
+    {
+      "name": "reader.badge, reader.rtl, reader.detect",
+      "text": "`badge` is the 1 to 3 characters shown on the button, for example `DE`. `rtl: true` is for right-to-left scripts. `detect` is a regex for the script, so that a question typed in it is answered in it."
+    },
+    {
+      "name": "reader.example",
+      "text": "`example.tr` is the reader-language translation of \"due date\" in \"Each loan has only one due date.\" `example.meaning` is one sentence that explains it. Write them: without an example, small models translate the whole sentence."
+    },
+    {
+      "name": "ai",
+      "text": "The Ollama models to try, in order. Default: `gemma4:e4b`, then `gemma3:4b`. `\"ai\": false` hides every AI button. The lessons, quiz, glossary and the \"by lesson\" mind map still work."
+    },
+    {
+      "name": "codes",
+      "text": "A regex for codes that repeat across lessons, such as rules, phases and requirement numbers. Default: `[A-Z]{1,5}-?\\d{1,4}`. Each code found in more than one lesson is underlined and opens its mind map on click. `false` turns it off. The default catches any token of capital letters plus a number. If it underlines things that are not codes, such as a product name like `S3`, narrow it to the academy's real codes. Lesson ids are never treated as codes."
+    },
+    {
+      "name": "groups",
+      "text": "The sidebar and home-page groups, in this order. Default: one group with everything. A group takes lessons by `prefix` (ids that start with it, then a digit) or by an explicit `lessons` list. `intro` names the group's overview lesson."
+    },
+    {
+      "name": "lesson_order",
+      "text": "The order for previous and next. Default: `\"groups\"`, by group. `\"id\"` gives id order."
+    },
+    {
+      "name": "home",
+      "text": "The home page text: `kicker`, `heading`, `intro`, `sample_terms` (examples in the mind-map hint) and `source_note`. Default: generic text."
+    },
+    {
+      "name": "labels",
+      "text": "Block titles and small words. The keys are `unit` (\"lesson\"), `intro`, `start`, `review`, `why`, `components`, `component_col`, `what_col`, `boundary`, `owns`, `not_owns`, `relationships`, `with_col`, `how_col`, `gates`, `example`, `pitfalls`, `terms`, `quiz`, `plain_toggle` and `video_note`."
+    },
+    {
+      "name": "theme",
+      "text": "CSS variables to override, such as `brand` (top bar and buttons), `accent` (highlights), `bg`, `card` and `fg`. They are listed at the top of `engine/portal/assets/style.css`. `dark` holds the dark-mode overrides; when you change a color that also has a dark value, set that too. The default is the kit's own colors."
+    },
+    {
+      "name": "font",
+      "text": "The font. `{\"family\": \"Inter\"}` names a font readers already have; adding `\"file\": \"fonts/BrandSans.woff2\"` uses a font file kept in the academy folder. The kit ships no fonts, so a licensed brand font stays in the private academy."
+    },
+    {
+      "name": "content, out, build",
+      "text": "Folders, relative to the academy folder. Defaults: `content`, `site` and `build`."
+    },
+    {
+      "name": "video",
+      "text": "Off by default. `{\"enabled\": true, \"voice\": \"af_heart\", \"python\": \"<path>\"}` turns videos on. See K1."
+    },
+    {
+      "name": "source",
+      "text": "Where the documents live, for sync. Default: none. See K1."
+    }
+  ],
+  "relationships": [
+    {
+      "with": "M0",
+      "text": "Explains the two parts that these steps work with: the kit and the academy folder."
+    },
+    {
+      "with": "M2",
+      "text": "Is step 5 in detail: how one lesson file is written."
+    },
+    {
+      "with": "K1",
+      "text": "Covers what comes after the seven steps: changes, sync, videos and the other extras from step 7."
+    }
+  ],
+  "gates": [
+    {
+      "gate": "1",
+      "text": "Find out what is needed: which documents, who reads it, where the academy folder should live."
+    },
+    {
+      "gate": "2",
+      "text": "Create the folder with `init.py`."
+    },
+    {
+      "gate": "3",
+      "text": "Read the documents and propose a lesson plan. Wait for the user to agree."
+    },
+    {
+      "gate": "4",
+      "text": "Fill in `academy.json` and write `ACADEMY_NOTES.md`."
+    },
+    {
+      "gate": "5",
+      "text": "Write the lessons: the first one yourself, then one writer per file."
+    },
+    {
+      "gate": "6",
+      "text": "Check, build, look: `validate.py`, `build.py`, `serve.py`, then the browser."
+    },
+    {
+      "gate": "7",
+      "text": "Offer the extras: AI features, videos, sync, always on."
+    }
+  ],
+  "example": {
+    "title": "From a library handbook to an academy",
+    "steps": [
+      "For example, imagine a team with a library handbook in the folder `library-handbook`. A new colleague reads English, and her own language is German.",
+      "Step 1: you learn that the newest edition wins when two files disagree, that she is new to the library, and that the academy folder should sit next to the handbook as `library-academy`.",
+      "Step 2: you run `init.py` with `--title \"Library Handbook Academy\"`, `--docs` pointing at the handbook folder, and `--reader German`.",
+      "Step 3: you read the whole handbook. You propose a table of lessons in two groups, \"Basics\" and \"Special cases\". You note that requirement numbers such as `REQ-12` come back again and again. You wait until the user agrees.",
+      "Step 4: in `academy.json` you set the groups, the domain \"public library operations\", and the labels \"Roles\" and \"Phases\". You write `reader.example` in German. You write `ACADEMY_NOTES.md`.",
+      "Step 5: you write the overview lesson `L0` yourself and build it. Then the other lessons follow, one writer per file. Each lesson gets its line in `sources.json`.",
+      "Step 6: you validate, build and serve. You look at the home page, one lesson from top to bottom, one quiz answer and the browser console.",
+      "Step 7: you say what the AI features need, and you offer videos and sync."
+    ],
+    "explain": "The handbook and the team are made up. The names come from the sample academy in `CONFIG.md`. Notice where the work stops and waits: after the plan in step 3. Notice also where it does not stop: a clean build in step 6 is not the end, the look in the browser is."
+  },
+  "pitfalls": [
+    {
+      "text": "Do not plan from file names. Read everything in scope first."
+    },
+    {
+      "text": "Do not make one lesson per file. Make one lesson per topic that a person would ask about by name."
+    },
+    {
+      "text": "Do not write lessons before the user agrees to the plan. The plan is cheap to change now and expensive later."
+    },
+    {
+      "text": "Do not leave `reader.example` empty when there is a reader language. A small model then translates the whole sentence instead of the selected word."
+    },
+    {
+      "text": "Do not let two agents write the same lesson file. They silently overwrite each other."
+    },
+    {
+      "text": "Do not call it done after a clean build. Look at it in a browser yourself, through `serve.py`, not by opening `index.html` from disk."
+    }
+  ],
+  "key_terms": [
+    {
+      "term": "lesson plan",
+      "text": "The short table you propose before writing: lesson id, name, one line on what it covers, and which files it comes from. The user must agree to it.",
+      "tr": "Lektionsplan: die Tabelle der geplanten Lektionen"
+    },
+    {
+      "term": "lesson id",
+      "text": "The short code of a lesson, such as `L3` or `HR2`. If the documents already number things, the id uses their numbers.",
+      "tr": "Lektions-ID: der kurze Code einer Lektion"
+    },
+    {
+      "term": "group",
+      "text": "A set of lessons under one title in the sidebar and on the home page. Lessons are grouped the way the documents are organized.",
+      "tr": "Gruppe: mehrere Lektionen unter einer Überschrift"
+    },
+    {
+      "term": "overview lesson",
+      "text": "The lesson of a group where a reader starts. In `academy.json`, `intro` names it.",
+      "tr": "Überblickslektion: die Lektion, mit der eine Gruppe beginnt"
+    },
+    {
+      "term": "academy.json",
+      "text": "One file per academy. It holds everything that is specific to that academy. Only `title` is required.",
+      "tr": "academy.json: die Einstellungsdatei einer Academy"
+    },
+    {
+      "term": "ACADEMY_NOTES.md",
+      "text": "The academy's own notes: who the reader is, the authority order of the documents, the lesson plan and the wording rules. Every agent reads it first.",
+      "tr": "ACADEMY_NOTES.md: die Notizen zur Academy, die jeder zuerst liest"
+    },
+    {
+      "term": "authority order",
+      "text": "Which document wins when the documents disagree. Usually the newest.",
+      "tr": "Rangfolge der Dokumente: welches Dokument bei Widerspruch gilt"
+    },
+    {
+      "term": "domain",
+      "text": "A few words on the subject of the documents. It goes into the AI prompts.",
+      "tr": "Fachgebiet: wenige Worte zum Thema der Dokumente"
+    },
+    {
+      "term": "reader language",
+      "text": "The reader's own language, when the documents are not in it. It turns on Translate.",
+      "tr": "Sprache des Lesers: die eigene Sprache der lesenden Person"
+    },
+    {
+      "term": "labels",
+      "text": "The block titles and small words of an academy, set in `academy.json`. One academy says \"Parts\" and \"Milestones\", another \"Roles\" and \"Phases\".",
+      "tr": "Beschriftungen: die Titel der Blöcke in den Lektionen"
+    },
+    {
+      "term": "codes",
+      "text": "Short ids that repeat across the documents, such as a decision `R12` or a requirement `REQ-12`. A code found in more than one lesson is underlined and opens its mind map.",
+      "tr": "Codes: wiederkehrende Kürzel in den Dokumenten"
+    },
+    {
+      "term": "sources.json",
+      "text": "The file that records which source files each lesson is built from. It is what makes sync possible later.",
+      "tr": "sources.json: die Liste der Quelldateien je Lektion"
+    }
+  ],
+  "quiz": [
+    {
+      "q": "A docs folder has 30 files with clear names. Why should you still read all of them before you propose a lesson plan?",
+      "options": [
+        "Because the build fails if a file was not read",
+        "Because every file must become exactly one lesson",
+        "Because a plan made from file names misses what the documents actually spend their words on",
+        "Because the file names go into `academy.json`"
+      ],
+      "answer": 2,
+      "why": "A plan follows topics, not files. Only reading shows which topics the documents really cover and how much they say about each."
+    },
+    {
+      "q": "The documents already number their chapters, and people at work say \"look at 4.2\". Which lesson ids fit best?",
+      "options": [
+        "The documents' own numbers, so the lesson id is the name people use at work",
+        "New ids `L1`, `L2`, `L3` in the order you write the lessons",
+        "The file names of the documents",
+        "Long ids that describe the topic in full"
+      ],
+      "answer": 0,
+      "why": "If the documents already number things, use their numbers. Then the reader meets the same name in the academy and at work."
+    },
+    {
+      "q": "An HR academy shows the block titles \"Parts\" and \"Milestones\", but the subject has roles and phases. Where do you fix this?",
+      "options": [
+        "In every lesson file, by renaming the fields",
+        "In the kit's portal files",
+        "In `ACADEMY_NOTES.md`",
+        "In `labels` in `academy.json`"
+      ],
+      "answer": 3,
+      "why": "The block titles are the academy's `labels`. You set them once in `academy.json`, and the lesson files and the kit stay as they are."
+    },
+    {
+      "q": "A reader selects one word and presses Translate, but the popup translates the whole sentence. What is the most likely cause?",
+      "options": [
+        "The lesson has no quiz",
+        "`reader.example` was left empty",
+        "The `domain` is too short",
+        "The site was built twice"
+      ],
+      "answer": 1,
+      "why": "Without an example in the reader's language, a small model translates the whole sentence instead of the selected word. That is why you write `reader.example`."
+    },
+    {
+      "q": "The build ran without errors. What is still missing before you can say the academy is done?",
+      "options": [
+        "Nothing. A clean build means it is done.",
+        "A second build, to be sure",
+        "A push of the site to a server",
+        "A look in a browser: the home page, one lesson top to bottom, one quiz answer and the console"
+      ],
+      "answer": 3,
+      "why": "A lesson that validates can still read badly, and only a browser shows the pages as the reader sees them. You serve the site with `serve.py` and look yourself."
+    },
+    {
+      "q": "When do you bring up videos and sync?",
+      "options": [
+        "In step 1, together with the questions about the documents",
+        "At the end, as an offer",
+        "Never. They are always on.",
+        "Only if the build prints a warning"
+      ],
+      "answer": 1,
+      "why": "Do not ask about videos or sync up front. Offer them at the end, in step 7, and let the user decide."
+    }
+  ]
+}

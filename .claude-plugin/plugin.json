@@ -1,0 +1,6 @@
+{
+  "name": "academy-kit",
+  "version": "0.1.0",
+  "description": "Turn a set of documents into a private learning website: lessons with plain-words notes and quizzes, select-to-translate, diagrams, mind maps and an Ask box answered by a local model.",
+  "license": "MIT"
+}
