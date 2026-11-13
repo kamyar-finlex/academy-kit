@@ -13,7 +13,7 @@ Videos are the heavy part of the kit. An academy is complete without them; sugge
 | ffmpeg | `ffmpeg -version` | `brew install ffmpeg` |
 | A Python with `kokoro`, `soundfile`, `numpy` | — | Kokoro is the local voice. The build looks in `~/.local/share/academy-kit/tts` (the setup below); for another place, set `"video": {"python": "<path>/bin/python"}` in academy.json or the `ACADEMY_TTS_PYTHON` variable. |
 
-Setting up the voice once:
+Setting up the voice once (the same setup gives lessons their Listen voice, see LISTEN.md):
 
 ```bash
 python3 -m venv ~/.local/share/academy-kit/tts

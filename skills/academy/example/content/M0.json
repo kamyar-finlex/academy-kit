@@ -32,6 +32,7 @@
         "- **Visualize**: select a paragraph and get it as boxes and arrows.",
         "- **Mind map**: select a term, or click an underlined code such as `R12`, and see every place the lessons use it, grouped by idea. The source sentences are one click away.",
         "- **Ask**: ask a question about a selection or a term. The answer comes only from the lesson text and shows its sources.",
+        "- **Listen**: press the small speaker beside a paragraph, or Listen on a part's heading, and it is read aloud by a natural voice on your computer.",
         "Optional: a narrated video of about 2.5 minutes per lesson, and a badge that shows whether the lessons are in step with the documents."
       ],
       "explain": "The lesson text does the teaching. The four helpers remove small blocks while you read: a word you do not know, a paragraph you cannot picture, a term you keep meeting. The mind map matters most, because people remember relations, not lists. It saves you from flipping back through the lessons."
@@ -226,6 +227,11 @@
       "term": "public check",
       "text": "`tools/check_public.py` in the kit's repository. It fails when the repository holds an academy, media, documents, a secret, an e-mail address or a word on your private list.",
       "tr": "Öffentlichkeitsprüfung: Skript, das verhindert, dass Privates ins öffentliche Repository gelangt"
+    },
+    {
+      "term": "Listen",
+      "text": "Read aloud. A speaker beside every paragraph and a Listen button on every part; the voice runs on the reader's own computer and robotic voices are not used.",
+      "tr": "Vorlesen: der Text wird von einer natürlichen Stimme auf dem eigenen Rechner vorgelesen"
     }
   ],
   "quiz": [

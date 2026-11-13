@@ -164,7 +164,7 @@ def main():
         "id": cfg.get("id") or os.path.basename(ac.dir), "storage": cfg.get("storage"), "title": title,
         "home": cfg.get("home") or {}, "labels": cfg.get("labels") or {}, "groups": groups,
         "language": cfg.get("language") or {"code": "en", "name": "English"}, "reader": cfg.get("reader"),
-        "domain": cfg.get("domain"), "ai": cfg.get("ai", {}), "videos": find_videos(ac, ids),
+        "domain": cfg.get("domain"), "ai": cfg.get("ai", {}), "speech": cfg.get("speech", {}), "videos": find_videos(ac, ids),
         "sync": bool(cfg.get("source")),
     }
     if "codes" in cfg:

@@ -34,7 +34,7 @@ a { color: inherit; }
 .side a.active { background: var(--tint-light); color: var(--fg); box-shadow: inset 3px 0 0 var(--accent); }
 .side .id { flex: 0 0 40px; font-size: 13px; text-align: center; padding: 3px 0; border-radius: 6px; border: 1px solid var(--line); }
 .side a.done .id { background: var(--tint-dark); color: #fff; border-color: var(--tint-dark); }
-main { padding: 28px 40px 80px; max-width: 1100px; width: 100%; outline: none; }
+main { padding: 28px 40px 80px; max-width: 1100px; width: 100%; min-width: 0; outline: none; }
 .hero h1 { font-weight: 400; font-size: 40px; line-height: 1.15; margin: 4px 0 6px; }
 .hero .kicker { color: var(--accent); font-size: 14px; letter-spacing: .08em; text-transform: uppercase; }
 .hero .tag { font-size: 20px; color: var(--fg2); margin: 0 0 6px; }
@@ -141,6 +141,8 @@ ol.steps li::before { content: counter(s); position: absolute; left: 0; top: 6px
   .side.open { display: block; }
   .menu { display: block; }
   main { padding: 18px 16px 60px; }
+  section.block { padding: 18px 20px; }
+  section.block table { display: block; overflow-x: auto; }
   .two { grid-template-columns: 1fr; }
   .hero h1 { font-size: 30px; }
   .brand small, .score { display: none; }
@@ -240,3 +242,29 @@ svg.mind .mleaf.on circle, svg.mind .mleaf:focus-visible circle { fill: var(--ac
 .gate .g.xref { text-decoration: none; }
 .gate .g.xref:hover { background: var(--accent); color: #fff; }
 .opt .xref { text-decoration: none; cursor: inherit; }
+
+/* ---- listen: a speaker beside each paragraph, a Listen button on each part, and the player bar */
+.sp-unit { position: relative; }
+.sp { position: absolute; left: -25px; top: 3px; width: 22px; height: 22px; padding: 2px; border: 0; border-radius: 6px; background: none; color: var(--fg3); cursor: pointer; opacity: 0; transition: opacity .12s; line-height: 0; }
+.plain > .sp { left: -29px; top: 12px; }
+.hero .tag > .sp { top: 5px; }
+.en > ul > li:first-child { position: relative; }
+.en > ul > li > .sp { left: -47px; top: 2px; }
+ol.steps > li > .sp { left: -25px; top: 10px; }
+.sp-unit:hover .sp, .sp:focus-visible, .sp-unit.speaking .sp, .sp-unit:has(.speaking) .sp { opacity: 1; }
+.sp:hover, .sp-unit.speaking .sp, .sp-unit:has(.speaking) .sp { color: var(--accent); }
+@media (hover: none) { .sp { opacity: .55; } }
+.sp-all { margin-left: auto; align-self: center; display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 13.5px; padding: 3px 12px 3px 8px; border-radius: 14px; border: 1px solid var(--line); background: none; color: var(--fg2); cursor: pointer; white-space: nowrap; }
+.sp-all:hover { border-color: var(--accent); color: var(--fg); }
+.speaking { background: var(--brand-08); box-shadow: 0 0 0 5px var(--brand-08); border-radius: 4px; }
+tr.speaking { box-shadow: none; }
+.tpill .tb-say svg { width: 15px; height: 15px; }
+.sbar { position: fixed; z-index: 35; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; max-width: calc(100vw - 24px); padding: 8px 12px; border-radius: 26px; background: var(--brand); color: #fff; box-shadow: 0 10px 30px rgba(var(--brand-rgb),.35); font-size: 14px; }
+.sbar button { width: 32px; height: 32px; border-radius: 16px; border: 0; background: rgba(255,255,255,.14); color: #fff; font-size: 13px; cursor: pointer; flex: none; }
+.sbar button:hover { background: rgba(255,255,255,.26); }
+.sbar .sb-what:only-child, .sbar button[hidden] ~ .sb-what { white-space: normal; }
+.sbar .sb-what { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; padding: 0 4px; }
+.sbar select { font: inherit; font-size: 13px; color: #fff; background: rgba(255,255,255,.14); border: 0; border-radius: 12px; padding: 5px 8px; max-width: 150px; }
+.sbar select option { color: #000; }
+@media (max-width: 860px) { .sp { left: -19px; width: 18px; padding: 0; } .plain > .sp { left: -23px; } .en > ul > li > .sp { left: -41px; } ol.steps > li > .sp { left: -19px; } .sbar .sb-voice { display: none; } }
+@media print { .sp, .sp-all, .sbar { display: none; } }

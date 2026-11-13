@@ -100,6 +100,7 @@
       ${!AI ? "" : `<p class="hint"><b>Stuck on a word?</b> Select it with the mouse (or double-click it) and press <span class="kbd">${TR_LABEL}</span>. ${READER ? `You get the ${esc(READER.name)}, what it means in that sentence, and a simpler ${esc(LANG)} version.` : "You get what it means in that sentence, in simpler words."} Save it to <a href="#/words">My words</a> to review later.</p>
       <p class="hint"><b>Want to see it?</b> Select a paragraph or a list of steps and press <span class="kbd">Visualize</span>. The local model draws it as boxes and arrows; save the ones you like to <a href="#/diagrams">My diagrams</a>.</p>
       <p class="hint"><b>Keep meeting the same word?</b> Select a term${sampleText} and press <span class="kbd">Mind map</span>. You see every place the lessons use it, grouped by idea, and can ask a question about it. Press <span class="kbd">Ask</span> on any selection to ask about that part.</p>`}</div>
+      ${SPEECH ? `<p class="hint"><b>Rather listen?</b> In a lesson, press the small speaker beside a paragraph, or <span class="kbd">Listen</span> on a part's heading, and your computer reads it aloud. Pause, speed and voice are in the bar at the bottom.</p>` : ""}
       ${GROUPS.map(grid).join("")}
       <section class="syncbox" id="syncInfo" aria-live="polite"></section>
       ${H.source_note ? `<p class="videonote" style="margin-top:24px">${inline(H.source_note)}</p>` : ""}`;
@@ -161,7 +162,7 @@
     const d = done();
     const blocks = [];
     let n = 0;
-    const block = (anchor, title, html) => { n++; blocks.push({ anchor, title, html: `<section class="block" id="${anchor}"><h2><span class="n">${String(n).padStart(2, "0")}</span>${esc(title)}</h2>${html}</section>` }); };
+    const block = (anchor, title, html) => { n++; blocks.push({ anchor, title, html: `<section class="block" id="${anchor}" data-title="${esc(title)}"><h2><span class="n">${String(n).padStart(2, "0")}</span>${esc(title)}</h2>${html}</section>` }); };
 
     if (l.why) block("why", T.why, prose([l.why]));
     (l.sections || []).forEach((s, i) => block("s" + i, s.heading, prose(s.body) + plain(s.explain)));
@@ -203,9 +204,152 @@
         const o = +b.dataset.o, st = quizState(); st[key] = o === q.answer; store.set("quiz", st); store.set("pick:" + key, o); show(o); renderSide(l.id);
       }));
     });
+    if (speech) speech.decorate(main);
     const rq = document.getElementById("resetQuiz");
     if (rq) rq.addEventListener("click", () => { const st = quizState(); l.quiz.forEach((_, i) => delete st[l.id + ":" + i]); store.set("quiz", st); route(); });
   }
+
+  // ---- listen: a paragraph, a whole part or a selection is read aloud, by a voice on this computer.
+  // First choice is the kit's natural voice (a local neural model behind speak/, started by serve.py).
+  // Without it, only the system's high-quality voices are used: the basic ones sound like a machine,
+  // and a browser's online voices would send the text to their maker, which an academy must never do.
+  const SPEECH = A.speech === false ? null : Object.assign({ rate: 1 }, A.speech || {});
+  const ICON_SAY = `<svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M3 7.5h3l4-3.5v12l-4-3.5H3z" fill="currentColor"/><path d="M13 7a4 4 0 0 1 0 6M15 4.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+  const speech = (() => {
+    if (!SPEECH) return null;
+    const synth = window.speechSynthesis || null, lang = (A.language?.code || "en").toLowerCase();
+    const prefs = store.get("speech", {});
+    let entries = [], nItems = 0, at = -1, run = 0, paused = false, label = "";
+    const rate = () => +prefs.rate || +SPEECH.rate || 1;
+
+    // The natural voice: asked for once, on the first click.
+    let natural = null;  // null = not asked yet, false = not running, else { voices, default }
+    const audio = new Audio(), clips = new Map();
+    async function findNatural() {
+      if (natural !== null) return natural;
+      try { const r = await fetch("speak/voices", { cache: "no-store" }); const j = r.ok ? await r.json() : null; natural = j && j.voices && j.voices.length ? j : false; } catch { natural = false; }
+      return natural;
+    }
+    const nvoice = () => (natural.voices.includes(prefs.nvoice) ? prefs.nvoice : natural.voices.includes(SPEECH.voice) ? SPEECH.voice : natural.default);
+    const PLACE = { a: "US", b: "UK", e: "ES", f: "FR", h: "HI", i: "IT", j: "JA", p: "PT", z: "ZH" };
+    const nname = (v) => { const [code, name] = v.split("_"); return `${name ? name[0].toUpperCase() + name.slice(1) : v} · ${PLACE[code[0]] || code[0]}${code[1] === "f" ? ", woman" : code[1] === "m" ? ", man" : ""}`; };
+    function clip(text) {  // one sentence -> a playable address; fetched once, the next one while this one plays
+      const v = nvoice(), key = v + "|" + text;
+      if (!clips.has(key)) {
+        clips.set(key, fetch("speak", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, voice: v }) })
+          .then((r) => { if (!r.ok) throw new Error("speak " + r.status); return r.blob(); }).then((b) => URL.createObjectURL(b)));
+        clips.get(key).catch(() => clips.delete(key));
+        if (clips.size > 80) { const old = clips.keys().next().value; clips.get(old).then((u) => URL.revokeObjectURL(u)).catch(() => {}); clips.delete(old); }
+      }
+      return clips.get(key);
+    }
+
+    // The system's own voices, as a second choice: installed ones only, and only the good ones unless the academy says otherwise.
+    let voices = [];
+    const keep = [];  // Chrome drops an utterance's events if nothing else holds on to it
+    const GOOD = /premium|enhanced|natural|neural/i;
+    const loadSys = () => { voices = !synth ? [] : synth.getVoices().filter((v) => v.localService && v.lang.toLowerCase().startsWith(lang) && (SPEECH.basic_voices || GOOD.test(v.name)))
+      .sort((x, y) => (/premium/i.test(y.name) - /premium/i.test(x.name)) || x.name.localeCompare(y.name)); };
+    const svoice = () => voices.find((v) => v.name === prefs.voice) || voices.find((v) => v.name === SPEECH.voice) || voices[0] || null;
+    synth?.addEventListener?.("voiceschanged", loadSys);
+
+    const bar = document.createElement("div");
+    bar.className = "sbar"; bar.hidden = true; bar.setAttribute("role", "region"); bar.setAttribute("aria-label", "Read aloud");
+    bar.innerHTML = `<button type="button" class="sb-play" aria-label="Pause">❚❚</button><button type="button" class="sb-stop" aria-label="Stop reading">■</button><span class="sb-what" aria-live="polite"></span>
+      <select class="sb-rate" aria-label="Reading speed">${[0.8, 0.9, 1, 1.1, 1.25, 1.5].map((r) => `<option value="${r}">${r}×</option>`).join("")}</select><select class="sb-voice" aria-label="Voice"></select>`;
+    document.body.append(bar);
+    const btnPlay = bar.querySelector(".sb-play"), what = bar.querySelector(".sb-what"), selRate = bar.querySelector(".sb-rate"), selVoice = bar.querySelector(".sb-voice");
+    selRate.value = String(rate());
+    const fillVoices = () => {
+      const list = natural ? natural.voices.map((v) => [v, nname(v)]) : voices.map((v) => [v.name, v.name.replace(/\s*\((?:Enhanced|Premium)\)/i, "")]);
+      const now = natural ? nvoice() : svoice()?.name;
+      selVoice.innerHTML = list.map(([v, n]) => `<option value="${esc(v)}"${v === now ? " selected" : ""}>${esc(n)}</option>`).join("");
+      selVoice.hidden = list.length < 2;
+    };
+    const controls = (on) => { btnPlay.hidden = selRate.hidden = !on; if (!on) selVoice.hidden = true; };
+    const showPlay = () => { btnPlay.textContent = paused ? "▶" : "❚❚"; btnPlay.setAttribute("aria-label", paused ? "Continue" : "Pause"); };
+
+    // Text is spoken sentence by sentence: the first one starts quickly, and long passages cannot stall.
+    const chunks = (text) => { const out = []; let cur = ""; for (const s of text.split(/(?<=[.!?:;])\s+/)) { if (cur && (cur + " " + s).length > 150) { out.push(cur); cur = s; } else cur = cur ? cur + " " + s : s; } if (cur) out.push(cur); return out; };
+    const mark = (el) => { document.querySelectorAll(".speaking").forEach((x) => x.classList.remove("speaking")); if (el) { el.classList.add("speaking"); const r = el.getBoundingClientRect(); if (r.top < 70 || r.bottom > innerHeight - 90) el.scrollIntoView({ block: "center", behavior: "smooth" }); } };
+    const quiet = () => { synth?.cancel(); audio.pause(); audio.removeAttribute("src"); };
+    function stop() { run++; quiet(); entries = []; at = -1; paused = false; mark(null); bar.hidden = true; }
+    function fail(msg) { run++; quiet(); entries = []; at = -1; mark(null); controls(false); what.textContent = msg; bar.hidden = false; }
+    function next() {
+      at++;
+      if (at >= entries.length) return stop();
+      const my = run, e = entries[at];
+      mark(e.el);
+      what.textContent = label + (nItems > 1 ? ` · ${e.item + 1}/${nItems}` : "");
+      if (natural) {
+        if (entries[at + 1]) clip(entries[at + 1].text).catch(() => {});
+        clip(e.text).then((url) => { if (my !== run) return; audio.src = url; audio.playbackRate = rate(); return audio.play(); })
+          .catch(() => { if (my === run) fail("The voice stopped answering. Check that the academy's voice is still running."); });
+      } else {
+        const u = new SpeechSynthesisUtterance(e.text), v = svoice();
+        u.voice = v; u.lang = v.lang; u.rate = rate();
+        u.onend = () => { if (my === run) next(); };
+        u.onerror = (ev) => { if (my === run && ev.error !== "interrupted" && ev.error !== "canceled") next(); };
+        keep.push(u); if (keep.length > 40) keep.shift();
+        synth.speak(u);
+      }
+    }
+    audio.addEventListener("ended", () => { if (at >= 0) next(); });
+    async function play(list, name) {
+      stop();
+      list = list.filter((x) => x.text);
+      if (!list.length) return;
+      const my = run;
+      paused = false; showPlay(); controls(false); what.textContent = "Getting the voice ready…"; bar.hidden = false;
+      await findNatural();
+      if (my !== run) return;
+      if (!natural) {
+        loadSys();
+        if (!svoice()) return fail(`No natural ${LANG} voice is available on this computer. Start the academy with the kit's serve.py and a Kokoro setup, or install a high-quality system voice.`);
+      }
+      entries = list.flatMap((it, i) => chunks(it.text).map((text) => ({ el: it.el, text, item: i })));
+      nItems = list.length; label = name || "Reading"; at = -1;
+      controls(true); fillVoices();
+      setTimeout(() => { if (my === run) next(); }, 60);  // give a cancelled sentence a moment to end, or the first one can be swallowed
+    }
+    const again = () => { if (at < 0) return; run++; quiet(); paused = false; showPlay(); at--; const my = run; setTimeout(() => { if (my === run) next(); }, 60); };
+    btnPlay.onclick = () => { paused = !paused; if (natural) { if (paused) audio.pause(); else audio.play(); } else if (paused) synth.pause(); else synth.resume(); showPlay(); };
+    bar.querySelector(".sb-stop").onclick = stop;
+    selRate.onchange = () => { prefs.rate = +selRate.value; store.set("speech", prefs); if (natural) audio.playbackRate = rate(); else again(); };
+    selVoice.onchange = () => { prefs[natural ? "nvoice" : "voice"] = selVoice.value; store.set("speech", prefs); again(); };
+    window.addEventListener("hashchange", stop);
+    window.addEventListener("pagehide", quiet);
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !bar.hidden) stop(); });
+
+    // What a voice should say: no symbols it would stumble on, codes spaced so "L12" is read as a letter and a number.
+    const clean = (t) => String(t || "").replace(/\s+/g, " ").replace(/→/g, " to ").replace(/\s&\s/g, " and ").replace(/[·|]/g, ", ").replace(/\s\/\s/g, ", ")
+      .replace(/\be\.g\./gi, "for example").replace(/\bi\.e\./gi, "that is").replace(/\b([A-Z]{1,3})(\d{1,3})\b/g, "$1 $2").trim();
+    const textOf = (el) => (el.matches("tr") ? [...el.cells].map((c) => clean(c.textContent)).filter(Boolean).join(". ")
+      : el.matches(".term, .gate") ? [...el.childNodes].map((n) => clean(n.textContent)).filter(Boolean).join(". ")
+      : (el.matches(".plain") ? "In plain words. " : "") + clean(el.textContent));
+    const itemsOf = (el) => (el.matches("ul, ol") ? [...el.children] : [el]).map((x) => ({ el: x, text: textOf(x) }));
+    const PART = ".en > p, .en > ul > li, .plain, .pit, ol.steps > li, tbody tr, .gate, .term, .box h3, .box li";
+    // A small speaker beside every paragraph, list and note; a "Listen" button on every part's heading.
+    function decorate(root) {
+      root.querySelectorAll(".block .en > p, .block .en > ul, .block .plain, .block .pit, .block ol.steps, .hero .tag").forEach((el) => {
+        const host = el.matches("ul, ol") ? el.firstElementChild : el;  // a list's speaker sits in its first item: a list may only hold items
+        if (!host || el.closest(".quiz") || host.querySelector(":scope > .sp")) return;
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "sp"; b.setAttribute("aria-label", "Read this aloud"); b.title = "Read this aloud"; b.innerHTML = ICON_SAY;
+        b.addEventListener("click", (e) => { e.stopPropagation(); if (el.classList.contains("speaking") || el.querySelector(".speaking")) return stop(); play(itemsOf(el), el.closest(".block")?.dataset.title || "Reading"); });
+        el.classList.add("sp-unit"); host.prepend(b);
+      });
+      root.querySelectorAll("section.block").forEach((sec) => {
+        const h = sec.querySelector(":scope > h2");
+        if (!h || sec.id === "quiz" || h.querySelector(".sp-all")) return;
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "sp-all"; b.setAttribute("aria-label", `Listen to: ${sec.dataset.title}`); b.innerHTML = ICON_SAY + "<span>Listen</span>";
+        b.addEventListener("click", () => { if (sec.querySelector(".speaking")) return stop(); play([{ el: h, text: clean(sec.dataset.title) }, ...[...sec.querySelectorAll(PART)].map((x) => ({ el: x, text: textOf(x) }))], sec.dataset.title); });
+        h.append(b);
+      });
+    }
+    return { decorate, stop, say: (text) => play([{ el: null, text: clean(text) }], "Your selection") };
+  })();
 
   function linkIds(s) {
     return IDS.length ? esc(s).replace(lessonRx(), (m) => (byId[m] ? `<a href="#/${m}">${m}</a>` : m)) : esc(s);
@@ -284,8 +428,8 @@
   // The floating bar over a selection: Translate for a word or phrase, Visualize for a passage.
   const pill = document.createElement("div");
   pill.className = "tpill"; pill.hidden = true;
-  pill.innerHTML = `<button type="button" class="tb-tr">${READER?.badge ? `<span class="${RTL}">${esc(READER.badge)}</span> ` : ""}${TR_LABEL} <span class="k">${TR_KEY.toUpperCase()}</span></button><button type="button" class="tb-mind"><span aria-hidden="true">✳</span> Mind map <span class="k">M</span></button><button type="button" class="tb-viz"><span aria-hidden="true">◇</span> Visualize <span class="k">V</span></button><button type="button" class="tb-ask"><span aria-hidden="true">?</span> Ask <span class="k">A</span></button>`;
-  const btnTr = pill.querySelector(".tb-tr"), btnViz = pill.querySelector(".tb-viz"), btnMind = pill.querySelector(".tb-mind"), btnAsk = pill.querySelector(".tb-ask");
+  pill.innerHTML = `<button type="button" class="tb-tr">${READER?.badge ? `<span class="${RTL}">${esc(READER.badge)}</span> ` : ""}${TR_LABEL} <span class="k">${TR_KEY.toUpperCase()}</span></button><button type="button" class="tb-mind"><span aria-hidden="true">✳</span> Mind map <span class="k">M</span></button><button type="button" class="tb-viz"><span aria-hidden="true">◇</span> Visualize <span class="k">V</span></button><button type="button" class="tb-ask"><span aria-hidden="true">?</span> Ask <span class="k">A</span></button><button type="button" class="tb-say">${ICON_SAY} Listen <span class="k">L</span></button>`;
+  const btnTr = pill.querySelector(".tb-tr"), btnViz = pill.querySelector(".tb-viz"), btnMind = pill.querySelector(".tb-mind"), btnAsk = pill.querySelector(".tb-ask"), btnSay = pill.querySelector(".tb-say");
   const pop = document.createElement("div");
   pop.className = "tpop"; pop.hidden = true; pop.setAttribute("role", "dialog"); pop.setAttribute("aria-label", "Translation");
   document.body.append(pill, pop);
@@ -322,8 +466,8 @@
     setTimeout(() => {
       const s = readSelection();
       if (!s) { if (!pop.contains(document.activeElement)) pill.hidden = true; return; }
-      pending = s; pop.hidden = true; btnTr.hidden = !s.canTr; btnViz.hidden = !s.canViz; btnMind.hidden = !s.canMind; btnAsk.hidden = !AI;
-      if (!s.canTr && !s.canViz && !s.canMind && !AI) { pill.hidden = true; return; }
+      pending = s; pop.hidden = true; btnTr.hidden = !s.canTr; btnViz.hidden = !s.canViz; btnMind.hidden = !s.canMind; btnAsk.hidden = !AI; btnSay.hidden = !speech;
+      if (!s.canTr && !s.canViz && !s.canMind && !AI && !speech) { pill.hidden = true; return; }
       place(pill, s.rect);
     }, 10);
   });
@@ -334,6 +478,7 @@
     if (free && (e.key === "v" || e.key === "V") && pending.canViz) { e.preventDefault(); visualize(pending); }
     if (free && (e.key === "m" || e.key === "M") && pending.canMind) { e.preventDefault(); mindMap(pending.term); }
     if (free && AI && (e.key === "a" || e.key === "A")) { e.preventDefault(); askSelection(pending); }
+    if (free && speech && (e.key === "l" || e.key === "L")) { e.preventDefault(); const t = pending.text; hideAll(); speech.say(t); }
   });
   document.addEventListener("mousedown", (e) => { if (!pop.contains(e.target) && !pill.contains(e.target)) { pop.hidden = true; } });
   window.addEventListener("hashchange", hideAll);
@@ -342,6 +487,7 @@
   btnViz.addEventListener("click", () => pending && visualize(pending));
   btnMind.addEventListener("click", () => pending && mindMap(pending.term));
   btnAsk.addEventListener("click", () => pending && askSelection(pending));
+  btnSay.addEventListener("click", () => { if (!pending || !speech) return; const t = pending.text; hideAll(); speech.say(t); });
 
   const OLLAMA_DOWN = "The local model isn't answering. Check that Ollama is running on this computer and the model is installed.";
   async function open(s) {

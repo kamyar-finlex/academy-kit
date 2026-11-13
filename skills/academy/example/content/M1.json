@@ -122,6 +122,10 @@
       "text": "The Ollama models to try, in order. Default: `gemma4:e4b`, then `gemma3:4b`. `\"ai\": false` hides every AI button. The lessons, quiz, glossary and the \"by lesson\" mind map still work."
     },
     {
+      "name": "speech",
+      "text": "Read aloud. `{\"voice\": \"af_heart\", \"rate\": 1}` sets the starting voice and speed; `false` removes the speaker buttons. Basic system voices are not used unless `\"basic_voices\": true`."
+    },
+    {
       "name": "codes",
       "text": "A regex for codes that repeat across lessons, such as rules, phases and requirement numbers. Default: `[A-Z]{1,5}-?\\d{1,4}`. Each code found in more than one lesson is underlined and opens its mind map on click. `false` turns it off. The default catches any token of capital letters plus a number. If it underlines things that are not codes, such as a product name like `S3`, narrow it to the academy's real codes. Lesson ids are never treated as codes."
     },

@@ -17,6 +17,7 @@ It is part of the academy, so it is private like the documents. Never put a pass
     "example": { "tr": "Fälligkeitsdatum", "meaning": "Der Tag, an dem das Buch zurück sein muss." }
   },
   "ai": { "models": ["gemma4:e4b", "gemma3:4b"] },
+  "speech": { "voice": "af_heart" },
   "codes": "(?:REQ-|[RP])\\d{1,3}",
   "groups": [
     { "title": "Basics", "prefix": "L", "intro": "L0", "blurb": "What every new colleague needs first." },
@@ -45,6 +46,7 @@ It is part of the academy, so it is private like the documents. Never put a pass
 | `home` | generic text | `kicker`, `heading`, `intro`, `sample_terms` (examples in the mind-map hint), `source_note`. |
 | `labels` | generic | Block titles and small words. Keys: `unit` ("lesson"), `intro`, `start`, `review`, `why`, `components`, `component_col`, `what_col`, `boundary`, `owns`, `not_owns`, `relationships`, `with_col`, `how_col`, `gates`, `example`, `pitfalls`, `terms`, `quiz`, `plain_toggle`, `video_note`. |
 | `theme` | the kit's default colors | CSS variables to override: `brand` (top bar, buttons), `accent` (highlights), `tint`, `bg`, `card`, `fg`, `line`… The full list is at the top of `engine/portal/assets/style.css`. `dark` holds the dark-mode overrides: if you change `bg`, `card`, `fg`, `line` or `accent`, set their dark values too, or dark mode shows your light colors. For videos also set `brand-rgb` and `accent-rgb` (the same colors as `r,g,b`). |
+| `speech` | the natural voice, if set up | Read aloud. `{"voice": "af_heart", "rate": 1}` sets the starting voice and speed; `false` removes the speaker buttons. Basic (robotic) system voices are never used unless `"basic_voices": true`. See LISTEN.md. |
 | `font` | the system font | `{"family": "Inter"}` for a font readers already have, or `{"family": "Brand Sans", "file": "fonts/BrandSans.woff2"}` for a font file kept in the academy folder. The kit ships no fonts; a licensed brand font belongs in the (private) academy. |
 | `content`, `out`, `build` | `content`, `site`, `build` | Folders, relative to the academy folder. |
 | `video` | off | `{"enabled": true, "voice": "af_heart", "python": "<path>", "espeak_data": "<path>"}`. See VIDEO.md. |

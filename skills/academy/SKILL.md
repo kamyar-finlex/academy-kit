@@ -21,6 +21,7 @@ That split is why colleagues can share the kit: nobody's documents or lessons ar
 - **Visualize**: select a paragraph, get it as boxes and arrows.
 - **Mind map**: select a term, or click an underlined code such as `R12`, and see every place the lessons use it, grouped by idea, with the source sentences one click away. People remember relations, not lists; this is the feature that saves them from flipping back.
 - **Ask**: a question about a selection or a term, answered only from the lesson text, with its sources.
+- **Listen**: a speaker beside every paragraph and a Listen button on every part; the text is read aloud by a natural voice on their computer. Some people understand a text better when it is read to them.
 - Optional: a 2.5-minute narrated video per lesson, and a badge that shows whether the lessons are in step with the documents.
 
 The four AI features run on a local model through [Ollama](https://ollama.com). Without Ollama the academy still works; those buttons report that the model is not answering. Nothing is sent to an outside service, which is what makes it safe for internal documents.
@@ -91,6 +92,7 @@ Then look at it in a browser yourself before saying it is done: the home page, o
 ### 7. Offer the extras
 
 - **AI features**: need Ollama running and one of the models in `ai.models` installed (`ollama pull <model>`). Say so if it is missing; do not install it unasked.
+- **Listen**: `<kit>/references/LISTEN.md`. Works once the natural voice is set up on the computer (a one-time install), or with a high-quality system voice. Say so if neither is there; do not install it unasked, and never switch on the robotic basic voices as a shortcut.
 - **Videos**: `<kit>/references/VIDEO.md`. Heavy (2–3 minutes per lesson, extra tools). Offer, do not assume.
 - **Sync**: `<kit>/references/SYNC.md`. Worth it when the documents are still changing.
 - **Always on**: `<kit>/engine/docker/` has a Docker Compose file that serves the site permanently on localhost.
@@ -130,9 +132,10 @@ This is the rule to hold on to, because getting it wrong leaks someone's documen
 | `engine/build.py` | Build the site (and videos, if on). |
 | `engine/serve.py` | Serve it locally with the AI features. |
 | `engine/sync.py` | Did the source change, and which lessons does it touch? |
+| `engine/speak_server.py` | The natural voice for Listen. `serve.py` starts it when a Kokoro setup exists. |
 | `engine/portal/`, `engine/video/` | The website and the video renderer. Shared by every academy. |
 | `engine/docker/` | Optional always-on server. |
 | `references/LESSON_BRIEF.md` | How to write a lesson. Read before writing any. |
 | `references/CONFIG.md` | Every academy.json setting. |
-| `references/VIDEO.md`, `references/SYNC.md` | The two extras. |
+| `references/LISTEN.md`, `references/VIDEO.md`, `references/SYNC.md` | Read aloud, videos, sync. |
 | `example/` | A small finished academy to look at or copy from. |

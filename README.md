@@ -13,9 +13,10 @@ You point Claude at a folder of documents (a handbook, design notes, policies, a
 - **Visualize**: select a paragraph and see it as boxes and arrows.
 - **Mind map**: select a term, or click an underlined code like `R12`, and see every place the lessons use it, grouped by idea. Each point links back to its sentence.
 - **Ask**: ask a question about a selection or a term. The answer uses only the lesson text and shows its sources.
+- **Listen**: press the speaker beside a paragraph, or Listen on a part's heading, and it is read to you by a natural voice. Pause, speed and voice are in a small bar.
 - Optional: a short narrated **video** per lesson, and a **sync** check that tells you when the documents changed and which lessons are affected.
 
-Translate, Visualize, Mind map and Ask use a model that runs on your computer (through [Ollama](https://ollama.com)). Your documents are not sent anywhere.
+Translate, Visualize, Mind map and Ask use a model that runs on your computer (through [Ollama](https://ollama.com)). Listen uses a voice model that also runs on your computer. Your documents are not sent anywhere.
 
 ## The idea: the tool and the content are separate
 
@@ -99,7 +100,7 @@ python3 skills/academy/engine/build.py skills/academy/example && python3 skills/
 |---|---|
 | `skills/academy/SKILL.md` | What Claude follows to make and maintain an academy. |
 | `skills/academy/engine/` | `init`, `validate`, `build`, `serve`, `sync` (Python, no packages), the website (`portal/`), the video renderer (`video/`), an always-on Docker setup (`docker/`). |
-| `skills/academy/references/` | [Lesson format](skills/academy/references/LESSON_BRIEF.md), [settings](skills/academy/references/CONFIG.md), [videos](skills/academy/references/VIDEO.md), [sync](skills/academy/references/SYNC.md). |
+| `skills/academy/references/` | [Lesson format](skills/academy/references/LESSON_BRIEF.md), [settings](skills/academy/references/CONFIG.md), [listen](skills/academy/references/LISTEN.md), [videos](skills/academy/references/VIDEO.md), [sync](skills/academy/references/SYNC.md). |
 | `skills/academy/example/` | A small academy that teaches the kit itself. The only academy allowed in here. |
 | `tools/check_public.py`, `.githooks/`, `.github/workflows/` | The check that keeps private things out, as a script, a commit hook and a CI job. |
 | `THIRD_PARTY_NOTICES.md` | What is bundled (Mermaid) and what is not. |
@@ -110,6 +111,7 @@ python3 skills/academy/engine/build.py skills/academy/example && python3 skills/
 - **Private by design.** The site is served on `localhost` only. The lessons, the documents and your questions stay on your machine.
 - **The model is small and local.** Its diagrams and "by idea" groupings can be loose. Every mind-map point links to the real sentence, so you can check.
 - **Lessons are written by an AI from your documents.** They are told to state only what the documents say, but skim a lesson against its source before relying on it for a decision.
+- **Listen** needs a natural voice on your computer: the kit's own (a one-time setup, see [LISTEN.md](skills/academy/references/LISTEN.md)) or a high-quality system voice. Robotic voices are not used.
 - **Videos** need extra tools and speak English (and a few other languages, not German). An academy is complete without them.
 - **Look.** Colors and font can be set per academy (`theme` and `font` in `academy.json`). The kit ships no fonts.
 
