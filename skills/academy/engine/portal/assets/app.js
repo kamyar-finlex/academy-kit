@@ -71,7 +71,7 @@
   plainToggle.addEventListener("change", () => { store.set("plain", plainToggle.checked); document.body.classList.toggle("no-plain", !plainToggle.checked); });
   document.getElementById("menuBtn").addEventListener("click", () => side.classList.toggle("open"));
 
-  const studio = { available: false, status: null, files: [], selected: new Set(), tab: "lessons", filter: "", includeCode: false, models: [], job: null, lastActive: "home" };
+  const studio = { available: false, status: null, files: [], selected: new Set(), tab: "lessons", filter: "", includeCode: false, models: [], model: "", job: null, lastActive: "home" };
 
   function renderSide(active) {
     studio.lastActive = active || studio.lastActive || "home";
@@ -88,7 +88,10 @@
       const q = studio.filter.toLowerCase();
       const shown = studio.files.filter((f) => !q || f.path.toLowerCase().includes(q) || (f.title || "").toLowerCase().includes(q));
       const repoName = studio.status?.connected?.repo || "Repository";
-      const modelOpts = (studio.models.length ? studio.models : ["gemma4:e4b"]).map((m) => `<option value="${esc(m)}">${esc(m)}</option>`).join("");
+      const models = studio.models.length ? studio.models : ["gemma4:e4b"];
+      const activeModel = (studio.model && models.includes(studio.model)) ? studio.model : models[0];
+      studio.model = activeModel;
+      const modelOpts = models.map((m) => `<option value="${esc(m)}" ${m === activeModel ? "selected" : ""}>${esc(m)}</option>`).join("");
       side.innerHTML = `${tabsHtml}<div class="file-panel">
         <div class="file-head"><b title="${esc(repoName)}">${esc(repoName)}</b><button type="button" class="btn ghost small" id="filesRefresh" style="padding:2px 8px;font-size:12px">Sync</button></div>
         <input class="file-search" id="fileFilter" placeholder="Filter repo files…" value="${esc(studio.filter)}">
@@ -1056,6 +1059,7 @@
       if (b) { b.disabled = !studio.selected.size; b.textContent = `Create Academy (${studio.selected.size})`; }
     });
     side.querySelectorAll(".file-name").forEach((b) => b.onclick = () => previewRepoFile(b.dataset.p));
+    document.getElementById("genModel")?.addEventListener("change", (e) => { studio.model = e.target.value; });
     document.getElementById("genBtn")?.addEventListener("click", () => generateFromSelected());
   }
 
@@ -1080,7 +1084,8 @@
   async function generateFromSelected() {
     const files = [...studio.selected];
     if (!files.length) return;
-    const model = document.getElementById("genModel")?.value || "";
+    const model = document.getElementById("genModel")?.value || studio.model || "";
+    studio.model = model;
     try {
       const res = await apiJson("/api/academy/generate", {
         method: "POST",
@@ -1090,14 +1095,19 @@
       studio.job = { id: res.job_id, status: "running", stage: "starting", current: "Starting…", logs: [] };
       renderSide(studio.lastActive);
       const poll = async () => {
-        const j = await apiJson(`/api/jobs/${res.job_id}`);
-        studio.job = j;
-        renderSide(studio.lastActive);
-        if (j.status === "running") { setTimeout(poll, 1000); return; }
-        if (j.status === "done") {
-          studio.tab = "lessons";
-          location.hash = "#/";
-          location.reload();
+        try {
+          const j = await apiJson(`/api/jobs/${res.job_id}`);
+          studio.job = j;
+          renderSide(studio.lastActive);
+          if (j.status === "running") { setTimeout(poll, 1000); return; }
+          if (j.status === "done") {
+            studio.tab = "lessons";
+            location.hash = "#/";
+            location.reload();
+          }
+        } catch (e) {
+          studio.job = { status: "error", error: e.message || "Lost connection to server" };
+          renderSide(studio.lastActive);
         }
       };
       setTimeout(poll, 700);

@@ -286,30 +286,59 @@ def list_ollama_models(ollama_url):
         return []
 
 
-def _ollama_chat(ollama_url, model, system_prompt, user_prompt, timeout=240):
-    payload = json.dumps({
+def _ollama_chat(ollama_url, model, system_prompt, user_prompt, timeout=180, on_progress=None, disable_thinking=True):
+    body = {
         "model": model,
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ],
-        "stream": False,
+        "stream": True,
         "format": "json",
-        "options": {"temperature": 0.2},
-    }).encode("utf-8")
+        "options": {"temperature": 0.2, "num_ctx": 32768},
+    }
+    if disable_thinking:
+        body["think"] = False
+    payload = json.dumps(body).encode("utf-8")
     req = urllib.request.Request(
         f"{ollama_url}/api/chat",
         data=payload,
         headers={"Content-Type": "application/json"},
         method="POST",
     )
+    parts = []
+    tokens = 0
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
-            res = json.loads(r.read().decode("utf-8"))
+            for raw_line in r:
+                line = raw_line.decode("utf-8", errors="replace").strip()
+                if not line:
+                    continue
+                chunk = json.loads(line)
+                piece = (chunk.get("message") or {}).get("content") or ""
+                if piece:
+                    parts.append(piece)
+                    tokens += 1
+                    if on_progress and tokens % 15 == 0:
+                        on_progress(tokens)
+                if chunk.get("done"):
+                    break
+    except urllib.error.HTTPError as e:
+        err_text = e.read().decode("utf-8", errors="replace") if e.fp else str(e)
+        if disable_thinking and e.code == 400 and "think" in err_text.lower():
+            return _ollama_chat(
+                ollama_url, model, system_prompt, user_prompt,
+                timeout=timeout, on_progress=on_progress, disable_thinking=False,
+            )
+        raise RuntimeError(f"Ollama error ({e.code}) for {model}: {err_text[:240]}")
+    except TimeoutError:
+        raise RuntimeError(f"Ollama timed out waiting for {model} after {timeout}s of inactivity")
     except urllib.error.URLError as e:
-        raise RuntimeError(f"Ollama is not reachable at {ollama_url}: {e.reason}")
-    text = ((res.get("message") or {}).get("content") or "").strip()
-    return _extract_json(text)
+        reason = getattr(e, "reason", e)
+        if isinstance(reason, TimeoutError) or "timed out" in str(reason).lower():
+            raise RuntimeError(f"Ollama timed out waiting for {model} after {timeout}s")
+        raise RuntimeError(f"Ollama is not reachable at {ollama_url}: {reason}")
+    return _extract_json("".join(parts).strip())
 
 
 def _extract_json(text):
@@ -415,7 +444,7 @@ def _normalize_lesson(lid, raw, fallback_title):
     return data
 
 
-def _plan_lessons(ollama_url, model, repo_label, file_docs):
+def _plan_lessons(ollama_url, model, repo_label, file_docs, on_progress=None, log_fn=None):
     """Ask Ollama to group selected source files into coherent topic-based lessons."""
     if len(file_docs) == 1:
         f = file_docs[0]
@@ -427,16 +456,17 @@ def _plan_lessons(ollama_url, model, repo_label, file_docs):
         f"- {d['path']} (title: {d['title'] or d['name']}, size: {len(d['content'])} chars)"
         for d in file_docs
     )
+    target_max = min(max(len(file_docs), 1), 10)
     sys_p = (
         "You plan learning academies from documentation files. Return ONLY JSON with:\n"
         '{"groups":[{"title":"Group Name","blurb":"1 line","lessons":["L1","L2"]}],'
         '"lessons":[{"id":"L1","name":"Short 2-5 word title","sources":["path/to/file.md"]}]}\n'
-        "Rules: Use short IDs L1, L2, ...; combine small related files into 1 lesson (target 2-12 lessons); "
-        "every selected file path must appear in at least one lesson."
+        f"Rules: Use short IDs L1, L2, ...; combine related files so total lessons is at most {target_max} (never 1-to-1 per file when >6 files); "
+        "include every selected file path at least once."
     )
-    user_p = f"Repository: {repo_label}\nSelected files:\n{listing}"
+    user_p = f"Repository: {repo_label}\nSelected {len(file_docs)} files:\n{listing}"
     try:
-        plan = _ollama_chat(ollama_url, model, sys_p, user_p, timeout=120)
+        plan = _ollama_chat(ollama_url, model, sys_p, user_p, timeout=180, on_progress=on_progress)
         valid_paths = {d["path"] for d in file_docs}
         lessons = []
         covered = set()
@@ -448,9 +478,11 @@ def _plan_lessons(ollama_url, model, repo_label, file_docs):
             covered.update(srcs)
             lessons.append({"id": lid, "name": str(item.get("name") or lid)[:60], "sources": srcs})
         missing = [d for d in file_docs if d["path"] not in covered]
-        for d in missing:
+        for i in range(0, len(missing), 4):
+            chunk = missing[i:i + 4]
             lid = f"L{len(lessons) + 1}"
-            lessons.append({"id": lid, "name": d["title"] or os.path.splitext(d["name"])[0], "sources": [d["path"]]})
+            title = (chunk[0]["title"] or os.path.splitext(chunk[0]["name"])[0])[:60]
+            lessons.append({"id": lid, "name": title, "sources": [d["path"] for d in chunk]})
         if lessons:
             lesson_ids = [x["id"] for x in lessons]
             groups = []
@@ -464,20 +496,24 @@ def _plan_lessons(ollama_url, model, repo_label, file_docs):
             if rest:
                 groups.append({"title": "Lessons" if not groups else "More lessons", "blurb": "", "lessons": rest})
             return {"groups": groups, "lessons": lessons}
-    except Exception:
-        pass
-    # Fallback: 1 lesson per file (capped cleanly)
-    lessons = [
-        {"id": f"L{i}", "name": (d["title"] or os.path.splitext(d["name"])[0])[:60], "sources": [d["path"]]}
-        for i, d in enumerate(file_docs, 1)
-    ]
+    except Exception as e:
+        if log_fn:
+            log_fn(f"Planner fallback ({e})")
+    # Fallback: group into batches of up to 4 files (~max 8 lessons)
+    batch = max(1, (len(file_docs) + 7) // 8)
+    lessons = []
+    for idx in range(0, len(file_docs), batch):
+        chunk = file_docs[idx:idx + batch]
+        lid = f"L{len(lessons) + 1}"
+        title = (chunk[0]["title"] or os.path.splitext(chunk[0]["name"])[0])[:60]
+        lessons.append({"id": lid, "name": title, "sources": [d["path"] for d in chunk]})
     return {
         "groups": [{"title": "Lessons", "blurb": f"Documentation from {repo_label}", "lessons": [l["id"] for l in lessons]}],
         "lessons": lessons,
     }
 
 
-def _generate_one_lesson(ollama_url, model, plan_item, doc_texts, lang_name, reader_name):
+def _generate_one_lesson(ollama_url, model, plan_item, doc_texts, lang_name, reader_name, on_progress=None):
     tr_hint = (
         f'Include "tr" on key_terms with the {reader_name} translation + brief gloss.'
         if reader_name else ""
@@ -495,10 +531,19 @@ def _generate_one_lesson(ollama_url, model, plan_item, doc_texts, lang_name, rea
         '"quiz":[{"q":"...","options":["A","B","C","D"],"answer":0,"why":"..."}]}\n'
         f"Aim for 3-6 sections, 4-8 key_terms, and 3-5 quiz questions (spread answer index across 0-3). {tr_hint}"
     )
+    max_bundle = 28000
+    per_file = max(2200, max_bundle // max(len(doc_texts), 1))
     bundle = "\n\n---\n\n".join(
-        f"FILE: {path}\n{content[:18000]}" for path, content in doc_texts
+        f"FILE: {path}\n{content[:per_file]}" for path, content in doc_texts
+    )[:max_bundle]
+    raw = _ollama_chat(
+        ollama_url,
+        model,
+        sys_p,
+        f"Lesson topic: {plan_item['name']}\n\n{bundle}",
+        timeout=180,
+        on_progress=on_progress,
     )
-    raw = _ollama_chat(ollama_url, model, sys_p, f"Lesson topic: {plan_item['name']}\n\n{bundle}", timeout=240)
     return _normalize_lesson(plan_item["id"], raw, plan_item["name"])
 
 
@@ -577,9 +622,16 @@ class JobManager:
                     "content": doc["content"],
                 })
 
-            self._update(job_id, stage="planning", current="Grouping documents into lessons")
+            self._update(job_id, stage="planning", current="Grouping documents into lessons…")
             repo_label = (ac.cfg.get("source") or {}).get("label") or ac.cfg.get("title", "Repository")
-            plan = _plan_lessons(self.ollama_url, chosen, repo_label, file_docs)
+            plan = _plan_lessons(
+                self.ollama_url,
+                chosen,
+                repo_label,
+                file_docs,
+                on_progress=lambda tok: self._update(job_id, current=f"Planning lessons ({tok} tokens)…"),
+                log_fn=lambda m: self._log(job_id, m),
+            )
             planned = plan["lessons"]
             self._update(job_id, total=len(planned) + 1, progress=0)
             self._log(job_id, f"Planned {len(planned)} lesson(s) from {len(file_docs)} file(s)")
@@ -598,11 +650,21 @@ class JobManager:
             lessons_map.clear()
 
             all_ids = [p["id"] for p in planned]
+            total_l = len(planned)
             for idx, item in enumerate(planned, 1):
-                self._update(job_id, stage="generating", current=f"{item['id']} · {item['name']}", progress=idx - 1)
+                label = f"{idx}/{total_l} · {item['id']} · {item['name']}"
+                self._update(job_id, stage="generating", current=f"Writing {label}…", progress=idx - 1)
                 self._log(job_id, f"Writing {item['id']} ({item['name']})…")
                 docs_bundle = [(p, by_path[p]) for p in item["sources"] if p in by_path]
-                lesson_obj = _generate_one_lesson(self.ollama_url, chosen, item, docs_bundle, lang_name, reader_name)
+                lesson_obj = _generate_one_lesson(
+                    self.ollama_url,
+                    chosen,
+                    item,
+                    docs_bundle,
+                    lang_name,
+                    reader_name,
+                    on_progress=lambda tok, lbl=label: self._update(job_id, current=f"Writing {lbl} ({tok} tokens)…"),
+                )
                 errs, _ = validate.check_lesson(item["id"], lesson_obj, all_ids, ac.reader)
                 if errs:
                     raise RuntimeError(f"Lesson {item['id']} failed validation: {'; '.join(errs)}")
