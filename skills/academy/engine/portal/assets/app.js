@@ -64,11 +64,8 @@
   // ---- chrome
   const side = document.getElementById("side");
   const main = document.getElementById("main");
-  const plainToggle = document.getElementById("plainToggle");
   document.title = A.title || document.title;
-  plainToggle.checked = store.get("plain", true);
-  document.body.classList.toggle("no-plain", !plainToggle.checked);
-  plainToggle.addEventListener("change", () => { store.set("plain", plainToggle.checked); document.body.classList.toggle("no-plain", !plainToggle.checked); });
+  document.body.classList.toggle("no-plain", !store.get("plain", true));
   document.getElementById("menuBtn").addEventListener("click", () => side.classList.toggle("open"));
 
   const studio = { available: false, status: null, files: [], selected: new Set(), tab: "lessons", filter: "", includeCode: false, models: [], model: "", job: null, lastActive: "home" };
@@ -1017,9 +1014,10 @@
       else if (d.spec) await renderDiagram(el, d.spec); else await drawInto(el, d.mermaid); } catch { el.textContent = "Could not draw this diagram."; } } })();
   }
 
-  // ---- GitHub App Studio: Connect org repo, list doc files in left sidebar, generate academy
-  const connectBtn = document.getElementById("connectBtn");
-  const connectLabel = document.getElementById("connectLabel");
+  // ---- Settings & GitHub App Studio: reading preferences, repository connect, workspaces
+  const settingsBtn = document.getElementById("settingsBtn");
+  const settingsLabel = document.getElementById("settingsLabel");
+  const settingsDialog = document.getElementById("settingsDialog");
   async function apiJson(url, opts) {
     const r = await fetch(url, opts);
     const data = await r.json().catch(() => ({}));
@@ -1028,10 +1026,25 @@
   }
 
   function updateConnectBadge() {
-    if (!connectBtn) return;
+    if (!settingsBtn) return;
     const repo = studio.status?.connected?.repo;
-    connectBtn.classList.toggle("connected", !!repo);
-    connectLabel.textContent = repo ? repo : "Connect";
+    settingsBtn.classList.toggle("connected", !!repo);
+    settingsBtn.title = repo ? `Settings · Connected: ${repo}` : "Settings — repository & reading preferences";
+    if (settingsLabel) settingsLabel.textContent = "Settings";
+  }
+
+  if (settingsDialog && !("closedBy" in HTMLDialogElement.prototype)) {
+    const outside = (e, d) => {
+      const r = d.getBoundingClientRect();
+      return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+    };
+    let pressedOutside = false;
+    settingsDialog.addEventListener("pointerdown", (e) => { pressedOutside = outside(e, settingsDialog); });
+    settingsDialog.addEventListener("pointerup", (e) => { if (pressedOutside && outside(e, settingsDialog)) settingsDialog.close(); });
+  }
+  if (settingsDialog) {
+    settingsDialog.addEventListener("close", () => { settingsDialog.innerHTML = ""; });
+    window.addEventListener("hashchange", () => { if (settingsDialog.open) settingsDialog.close(); });
   }
 
   async function refreshRepoFiles() {
@@ -1135,21 +1148,49 @@
     img.src = "assets/icon.svg";
   }
 
-  async function openConnectModal() {
+  async function openSettingsModal() {
+    if (!settingsDialog) return;
     hideAll();
-    modal.hidden = false; document.body.classList.add("noscroll");
     try { studio.status = await apiJson("/api/github/status"); studio.available = true; } catch { studio.available = false; }
+
+    const plainOn = store.get("plain", true);
+    const readingCard = `<div class="gh-card">
+      <div class="gh-row"><strong>Reading Preferences</strong></div>
+      <label class="setting-row" for="plainToggle">
+        <div>
+          <strong>${esc(T.plain_toggle)}</strong>
+          <div class="simple">Show simplified plain-language explanations beneath lesson sections.</div>
+        </div>
+        <input type="checkbox" id="plainToggle" switch ${plainOn ? "checked" : ""}>
+      </label>
+    </div>`;
+
+    const bindReading = () => {
+      const pt = settingsDialog.querySelector("#plainToggle");
+      if (pt) pt.addEventListener("change", () => {
+        store.set("plain", pt.checked);
+        document.body.classList.toggle("no-plain", !pt.checked);
+      });
+    };
+
+    const closeSettings = () => { if (settingsDialog.open) settingsDialog.close(); };
+
     if (!studio.available) {
-      modal.innerHTML = `<div class="vbox gh-modal"><div class="vh"><div class="gh-brand"><img src="assets/icon.svg" alt="" width="44" height="44"><div><div class="lbl">GitHub Studio</div><h2>Local Server Required</h2></div></div><button class="tp-x" type="button" aria-label="Close">×</button></div>
-        <p class="simple">Start this academy with <code>python3 skills/academy/engine/serve.py</code> to connect GitHub organizations, browse files, and build academies locally.</p></div>`;
-      modal.querySelector(".tp-x").onclick = closeViz;
+      settingsDialog.innerHTML = `<div class="vbox gh-modal"><div class="vh"><div class="gh-brand"><img src="assets/icon.svg" alt="" width="44" height="44"><div><div class="lbl">Academy Settings</div><h2 id="settingsTitle">Settings</h2></div></div><button class="tp-x" type="button" aria-label="Close" autofocus>×</button></div>
+        ${readingCard}
+        <div class="gh-card"><strong>Repository Connection</strong><p class="simple">Start this academy with <code>python3 skills/academy/engine/serve.py</code> to connect GitHub organizations, switch workspaces, browse files, and build academies locally.</p></div></div>`;
+      settingsDialog.querySelector(".tp-x").onclick = closeSettings;
+      bindReading();
+      settingsDialog.showModal();
       return;
     }
+
     const app = studio.status?.app || {};
     const defWs = studio.status?.default_workspace || "~/academies";
     const langs = studio.status?.languages || ["German", "Persian", "Arabic", "French", "Spanish", "Turkish", "Polish", "Russian", "Ukrainian", "Hindi", "Chinese", "Hebrew", "English"];
     const langOptions = `<option value="">None (lessons only)</option>` + langs.map((x) => `<option value="${esc(x)}">${esc(x)}</option>`).join("");
     const workspaces = studio.status?.workspaces || [];
+    const activeRepo = studio.status?.connected?.repo || "";
     const wsHtml = workspaces.length > 1 ? `<div class="gh-card">
       <div class="gh-row"><strong>Workspaces</strong><span class="simple">Each repository lives in its own isolated academy folder</span></div>
       <div class="gh-row"><select id="wsSel" style="flex:1;min-width:0;font:inherit;font-size:14px;padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--fg)">${workspaces.map((w) => `<option value="${esc(w.dir)}" ${w.active ? "selected" : ""}>${esc(w.title)}${w.repo ? ` · ${esc(w.repo)}` : ""} (${w.lessons} lessons)</option>`).join("")}</select>
@@ -1166,24 +1207,26 @@
     const urlBlock = app.configured
       ? `<details class="gh-card" id="ghUrlCard"><summary style="cursor:pointer;font-size:14px;color:var(--fg2)">Or connect by custom Git URL</summary>${urlInner}</details>`
       : `<div class="gh-card" id="ghUrlCard"><div class="gh-row"><strong>Or connect by repository URL</strong><span class="simple">Works for public repos or local git credentials</span></div>${urlInner}</div>`;
-    modal.innerHTML = `<div class="vbox gh-modal"><div class="vh"><div class="gh-brand"><img src="assets/icon.svg" alt="" width="44" height="44"><div><div class="lbl">GitHub App Integration · Private &amp; Local-First</div><h2>Connect GitHub Repository</h2></div></div><button class="tp-x" type="button" aria-label="Close">×</button></div>
-      ${wsHtml}<div id="ghAppArea"></div>${urlBlock}</div>`;
-    modal.querySelector(".tp-x").onclick = closeViz;
+    settingsDialog.innerHTML = `<div class="vbox gh-modal"><div class="vh"><div class="gh-brand"><img src="assets/icon.svg" alt="" width="44" height="44"><div><div class="lbl">${activeRepo ? `Connected · ${esc(activeRepo)}` : "GitHub App Integration · Private &amp; Local-First"}</div><h2 id="settingsTitle">Settings</h2></div></div><button class="tp-x" type="button" aria-label="Close" autofocus>×</button></div>
+      ${readingCard}${wsHtml}<div id="ghAppArea"></div>${urlBlock}</div>`;
+    settingsDialog.querySelector(".tp-x").onclick = closeSettings;
+    bindReading();
+    settingsDialog.showModal();
 
-    modal.querySelector("#wsOpenBtn")?.addEventListener("click", async () => {
-      const dir = modal.querySelector("#wsSel").value;
+    settingsDialog.querySelector("#wsOpenBtn")?.addEventListener("click", async () => {
+      const dir = settingsDialog.querySelector("#wsSel").value;
       const res = await apiJson("/api/academies/switch", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ academy_dir: dir }) });
       if (res.built) { location.reload(); return; }
       studio.status = res.status;
       await refreshRepoFiles().catch(() => {});
       studio.tab = "files";
       updateConnectBadge();
-      closeViz();
+      closeSettings();
       renderSide(studio.lastActive);
     });
 
-    const urlRepoEl = modal.querySelector("#urlRepo");
-    const urlOutEl = modal.querySelector("#urlOut");
+    const urlRepoEl = settingsDialog.querySelector("#urlRepo");
+    const urlOutEl = settingsDialog.querySelector("#urlOut");
     let urlOutTouched = false;
     urlOutEl?.addEventListener("input", () => { urlOutTouched = true; });
     urlRepoEl?.addEventListener("input", () => {
@@ -1193,7 +1236,7 @@
       else if (parts.length === 1) urlOutEl.value = `${defWs}/${parts[0].toLowerCase()}`;
     });
 
-    const appArea = modal.querySelector("#ghAppArea");
+    const appArea = settingsDialog.querySelector("#ghAppArea");
     const renderAppArea = async () => {
       if (!app.configured) {
         appArea.innerHTML = `<div class="gh-card">
@@ -1262,7 +1305,7 @@
         const { installations } = await apiJson("/api/github/installations");
         const instArea = appArea.querySelector("#instArea");
         if (!installations.length) {
-          instArea.innerHTML = `<p class="simple">No organization has installed this App yet. Click <b>Install on Org / Repos</b> above, select your repositories, then reopen Connect.</p>`;
+          instArea.innerHTML = `<p class="simple">No organization has installed this App yet. Click <b>Install on Org / Repos</b> above, select your repositories, then reopen Settings.</p>`;
           return;
         }
         instArea.innerHTML = `<div class="gh-grid">
@@ -1348,7 +1391,7 @@
             studio.selected = new Set(studio.files.filter((f) => f.is_doc).map((f) => f.path));
             studio.tab = "files";
             updateConnectBadge();
-            closeViz();
+            closeSettings();
             renderSide(studio.lastActive);
           } catch (e) {
             err.textContent = e.message;
@@ -1360,19 +1403,19 @@
     };
     renderAppArea();
 
-    modal.querySelector("#urlConnectBtn").onclick = async () => {
-      const err = modal.querySelector("#urlErr"); err.textContent = "";
-      const btn = modal.querySelector("#urlConnectBtn"); btn.disabled = true; btn.textContent = "Cloning…";
+    settingsDialog.querySelector("#urlConnectBtn").onclick = async () => {
+      const err = settingsDialog.querySelector("#urlErr"); err.textContent = "";
+      const btn = settingsDialog.querySelector("#urlConnectBtn"); btn.disabled = true; btn.textContent = "Cloning…";
       try {
         const res = await apiJson("/api/github/connect", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            repo_url: modal.querySelector("#urlRepo").value.trim(),
-            branch: modal.querySelector("#urlBranch").value.trim(),
-            docs_root: modal.querySelector("#urlDocs").value.trim(),
-            academy_dir: modal.querySelector("#urlOut").value.trim(),
-            reader: modal.querySelector("#urlReader").value.trim(),
+            repo_url: settingsDialog.querySelector("#urlRepo").value.trim(),
+            branch: settingsDialog.querySelector("#urlBranch").value.trim(),
+            docs_root: settingsDialog.querySelector("#urlDocs").value.trim(),
+            academy_dir: settingsDialog.querySelector("#urlOut").value.trim(),
+            reader: settingsDialog.querySelector("#urlReader").value.trim(),
           }),
         });
         studio.status = res.status;
@@ -1380,7 +1423,7 @@
         studio.selected = new Set(studio.files.filter((f) => f.is_doc).map((f) => f.path));
         studio.tab = "files";
         updateConnectBadge();
-        closeViz();
+        closeSettings();
         renderSide(studio.lastActive);
       } catch (e) {
         err.textContent = e.message;
@@ -1388,7 +1431,7 @@
     };
   }
 
-  if (connectBtn) connectBtn.onclick = openConnectModal;
+  if (settingsBtn) settingsBtn.onclick = openSettingsModal;
   (async () => {
     try {
       studio.status = await apiJson("/api/github/status");
@@ -1406,7 +1449,7 @@
       }
       if (/[?&]github_(?:installed|setup)=/.test(location.search)) {
         history.replaceState({}, "", location.pathname + location.hash);
-        openConnectModal();
+        openSettingsModal();
       }
     } catch { studio.available = false; }
   })();

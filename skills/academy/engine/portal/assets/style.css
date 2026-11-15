@@ -298,6 +298,15 @@ tr.speaking { box-shadow: none; }
 .file-actions { display: grid; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
 .file-actions label { display: grid; gap: 3px; font-size: 12px; color: var(--fg3); }
 .file-actions select, .file-actions input { font: inherit; font-size: 13px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
+dialog.smodal { border: 0; padding: 0; background: transparent; color: var(--fg); max-width: min(760px, calc(100vw - 24px)); width: 100%; max-height: calc(100vh - 48px); margin: auto; overflow: visible; }
+dialog.smodal:modal { overscroll-behavior: contain; }
+dialog.smodal::backdrop { background: var(--overlay); overflow: hidden; overscroll-behavior: contain; }
+dialog.smodal[open] .vbox { max-height: calc(100vh - 48px); overflow: auto; }
+.setting-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; cursor: pointer; }
+.setting-row strong { display: block; font-weight: 400; font-size: 15px; color: var(--fg); }
+.setting-row .simple { margin-top: 2px; }
+input[type="checkbox"][switch] { accent-color: var(--accent); width: 20px; height: 20px; margin: 0; cursor: pointer; flex: none; }
+input[type="checkbox"][switch]:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
 .gh-modal { width: min(760px, 100%); overflow-x: hidden; }
 .gh-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .gh-brand > div { min-width: 0; }
