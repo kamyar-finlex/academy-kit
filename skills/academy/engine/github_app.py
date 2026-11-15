@@ -14,6 +14,7 @@ import os
 import re
 import secrets
 import shutil
+import ssl
 import stat
 import subprocess
 import tempfile
@@ -141,6 +142,28 @@ def create_app_jwt(cfg=None):
     return f"{header}.{payload}.{sig}"
 
 
+def _ssl_context():
+    """Return a verified SSL context, falling back to OS CA bundles when Python lacks one."""
+    vp = ssl.get_default_verify_paths()
+    if (vp.cafile and os.path.exists(vp.cafile)) or (vp.capath and os.path.isdir(vp.capath)):
+        return ssl.create_default_context()
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        pass
+    for ca in (
+        "/etc/ssl/cert.pem",
+        "/etc/ssl/certs/ca-certificates.crt",
+        "/etc/pki/tls/certs/ca-bundle.crt",
+        "/opt/homebrew/etc/openssl@3/cert.pem",
+        "/usr/local/etc/openssl@3/cert.pem",
+    ):
+        if os.path.exists(ca):
+            return ssl.create_default_context(cafile=ca)
+    return ssl.create_default_context()
+
+
 def _api(path, method="GET", token=None, body=None, bearer_jwt=None):
     url = path if path.startswith("http") else f"{GITHUB_API}{path}"
     headers = {
@@ -158,7 +181,7 @@ def _api(path, method="GET", token=None, body=None, bearer_jwt=None):
         headers["Content-Type"] = "application/json"
     req = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
-        with urllib.request.urlopen(req, timeout=20) as resp:
+        with urllib.request.urlopen(req, timeout=20, context=_ssl_context()) as resp:
             raw = resp.read().decode("utf-8")
             return json.loads(raw) if raw else {}
     except urllib.error.HTTPError as e:
