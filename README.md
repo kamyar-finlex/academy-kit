@@ -14,6 +14,7 @@ You point Claude at a folder of documents (a handbook, design notes, policies, a
 - **Mind map**: select a term, or click an underlined code like `R12`, and see every place the lessons use it, grouped by idea. Each point links back to its sentence.
 - **Ask**: ask a question about a selection or a term. The answer uses only the lesson text and shows its sources.
 - **Listen**: press the speaker beside a paragraph, or Listen on a part's heading, and it is read to you by a natural voice. Pause, speed and voice are in a small bar.
+- **Connect (GitHub App)**: click **Connect** in the top bar while running `serve.py` to register or install a read-only GitHub App on your organization, browse and select repository documents in the left sidebar, and build a private academy in an external folder.
 - Optional: a short narrated **video** per lesson, and a **sync** check that tells you when the documents changed and which lessons are affected.
 
 Translate, Visualize, Mind map and Ask use a model that runs on your computer (through [Ollama](https://ollama.com)). Listen uses a voice model that also runs on your computer. Your documents are not sent anywhere.
@@ -99,7 +100,7 @@ python3 skills/academy/engine/build.py skills/academy/example && python3 skills/
 | Path | What |
 |---|---|
 | `skills/academy/SKILL.md` | What Claude follows to make and maintain an academy. |
-| `skills/academy/engine/` | `init`, `validate`, `build`, `serve`, `sync` (Python, no packages), the website (`portal/`), the video renderer (`video/`), an always-on Docker setup (`docker/`). |
+| `skills/academy/engine/` | `init`, `validate`, `build`, `serve`, `sync`, `github_app`, `studio` (Python + `openssl`/`git`, no pip packages), the website (`portal/`), the video renderer (`video/`), an always-on Docker setup (`docker/`). |
 | `skills/academy/references/` | [Lesson format](skills/academy/references/LESSON_BRIEF.md), [settings](skills/academy/references/CONFIG.md), [listen](skills/academy/references/LISTEN.md), [videos](skills/academy/references/VIDEO.md), [sync](skills/academy/references/SYNC.md). |
 | `skills/academy/example/` | A small academy that teaches the kit itself. The only academy allowed in here. |
 | `tools/check_public.py`, `.githooks/`, `.github/workflows/` | The check that keeps private things out, as a script, a commit hook and a CI job. |

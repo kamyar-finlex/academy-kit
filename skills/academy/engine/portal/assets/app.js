@@ -71,16 +71,55 @@
   plainToggle.addEventListener("change", () => { store.set("plain", plainToggle.checked); document.body.classList.toggle("no-plain", !plainToggle.checked); });
   document.getElementById("menuBtn").addEventListener("click", () => side.classList.toggle("open"));
 
+  const studio = { available: false, status: null, files: [], selected: new Set(), tab: "lessons", filter: "", includeCode: false, models: [], job: null, lastActive: "home" };
+
   function renderSide(active) {
+    studio.lastActive = active || studio.lastActive || "home";
     const d = done();
     const link = (l) => `<a href="#/${l.id}" class="${l.id === active ? "active" : ""} ${d[l.id] ? "done" : ""}">
       <span class="id">${isIntro(l) ? "▶" : esc(l.id)}</span><span>${esc(l.name)}</span></a>`;
     const group = (g) => { const ls = g.lessons.map((id) => byId[id]).filter(Boolean); return ls.length ? `<h4>${esc(g.title)}</h4>${ls.map(link).join("")}` : ""; };
-    side.innerHTML = `<a href="#/" class="${active === "home" ? "active" : ""}"><span class="id">⌂</span><span>${esc(T.start)}</span></a>
-      ${GROUPS.map(group).join("")}
-      <h4>${esc(T.review)}</h4><a href="#/terms" class="${active === "terms" ? "active" : ""}"><span class="id">Aa</span><span>All key terms</span></a>
-      ${AI ? `<a href="#/words" class="${active === "words" ? "active" : ""}"><span class="id">${esc(READER?.badge || "✎")}</span><span>My words <small class="count">${words().length || ""}</small></span></a>
-      <a href="#/diagrams" class="${active === "diagrams" ? "active" : ""}"><span class="id">◇</span><span>My diagrams <small class="count">${diagrams().length || ""}</small></span></a>` : ""}`;
+    const hasFiles = !!(studio.status?.connected || studio.files.length);
+    const tabsHtml = hasFiles ? `<div class="side-tabs" role="tablist">
+      <button type="button" role="tab" data-tab="lessons" aria-selected="${studio.tab === "lessons"}">Lessons (${L.length})</button>
+      <button type="button" role="tab" data-tab="files" aria-selected="${studio.tab === "files"}">Repo Files (${studio.files.length})</button>
+    </div>` : "";
+    if (hasFiles && studio.tab === "files") {
+      const q = studio.filter.toLowerCase();
+      const shown = studio.files.filter((f) => !q || f.path.toLowerCase().includes(q) || (f.title || "").toLowerCase().includes(q));
+      const repoName = studio.status?.connected?.repo || "Repository";
+      const modelOpts = (studio.models.length ? studio.models : ["gemma4:e4b"]).map((m) => `<option value="${esc(m)}">${esc(m)}</option>`).join("");
+      side.innerHTML = `${tabsHtml}<div class="file-panel">
+        <div class="file-head"><b title="${esc(repoName)}">${esc(repoName)}</b><button type="button" class="btn ghost small" id="filesRefresh" style="padding:2px 8px;font-size:12px">Sync</button></div>
+        <input class="file-search" id="fileFilter" placeholder="Filter repo files…" value="${esc(studio.filter)}">
+        <div class="file-links">
+          <button type="button" id="selAll">All</button>
+          <button type="button" id="selDocs">Docs only</button>
+          <button type="button" id="selNone">None</button>
+          <label style="margin-left:auto;display:flex;align-items:center;gap:4px;color:var(--fg3);cursor:pointer"><input type="checkbox" id="incCode" ${studio.includeCode ? "checked" : ""}> Code</label>
+        </div>
+        <div class="file-list" id="fileList">${shown.length ? shown.map((f) => `<div class="file-item">
+          <input type="checkbox" class="fchk" data-p="${esc(f.path)}" ${studio.selected.has(f.path) ? "checked" : ""}>
+          <button type="button" class="file-name" data-p="${esc(f.path)}">${esc(f.path)}${f.title ? `<small>${esc(f.title)}</small>` : ""}</button>
+          <span class="file-badge ${esc(f.status)}">${esc(f.lessons?.length ? f.lessons.join(",") : f.status)}</span>
+        </div>`).join("") : `<div class="simple">No matching files found.</div>`}</div>
+        <div class="file-actions">
+          <label>Local model<select id="genModel">${modelOpts}</select></label>
+          ${studio.job && studio.job.status === "running"
+            ? `<div class="lbl">${esc(studio.job.current || studio.job.stage)}</div><div class="bar"></div>`
+            : `<button type="button" class="btn small" id="genBtn" ${studio.selected.size ? "" : "disabled"}>Create Academy (${studio.selected.size})</button>`}
+          ${studio.job?.error ? `<div class="tp-err" style="font-size:12.5px">${esc(studio.job.error)}</div>` : ""}
+        </div>
+      </div>`;
+      bindFilePanel();
+    } else {
+      side.innerHTML = `${tabsHtml}<a href="#/" class="${active === "home" ? "active" : ""}"><span class="id">⌂</span><span>${esc(T.start)}</span></a>
+        ${GROUPS.map(group).join("")}
+        <h4>${esc(T.review)}</h4><a href="#/terms" class="${active === "terms" ? "active" : ""}"><span class="id">Aa</span><span>All key terms</span></a>
+        ${AI ? `<a href="#/words" class="${active === "words" ? "active" : ""}"><span class="id">${esc(READER?.badge || "✎")}</span><span>My words <small class="count">${words().length || ""}</small></span></a>
+        <a href="#/diagrams" class="${active === "diagrams" ? "active" : ""}"><span class="id">◇</span><span>My diagrams <small class="count">${diagrams().length || ""}</small></span></a>` : ""}`;
+    }
+    side.querySelectorAll(".side-tabs button").forEach((b) => b.onclick = () => { studio.tab = b.dataset.tab; renderSide(studio.lastActive); });
     const n = L.filter((l) => d[l.id]).length;
     const qs = quizState();
     let right = 0, total = 0;
@@ -974,6 +1013,337 @@
       if (d.kind === "mind") { drawMind(el, d.idea || byLesson(d.title, d.notes), d.notes, () => mindMap(d.title, { notes: d.notes, idea: d.idea })); }
       else if (d.spec) await renderDiagram(el, d.spec); else await drawInto(el, d.mermaid); } catch { el.textContent = "Could not draw this diagram."; } } })();
   }
+
+  // ---- GitHub App Studio: Connect org repo, list doc files in left sidebar, generate academy
+  const connectBtn = document.getElementById("connectBtn");
+  const connectLabel = document.getElementById("connectLabel");
+  async function apiJson(url, opts) {
+    const r = await fetch(url, opts);
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+    return data;
+  }
+
+  function updateConnectBadge() {
+    if (!connectBtn) return;
+    const repo = studio.status?.connected?.repo;
+    connectBtn.classList.toggle("connected", !!repo);
+    connectLabel.textContent = repo ? repo : "Connect";
+  }
+
+  async function refreshRepoFiles() {
+    if (!studio.available) return;
+    const d = await apiJson(`/api/github/files?include_code=${studio.includeCode ? 1 : 0}`);
+    studio.files = d.files || [];
+    if (!studio.selected.size) studio.files.filter((f) => f.is_doc).forEach((f) => studio.selected.add(f.path));
+    renderSide(studio.lastActive);
+  }
+
+  function bindFilePanel() {
+    const qEl = document.getElementById("fileFilter");
+    if (qEl) qEl.oninput = (e) => { studio.filter = e.target.value; renderSide(studio.lastActive); document.getElementById("fileFilter")?.focus(); };
+    document.getElementById("incCode")?.addEventListener("change", async (e) => {
+      studio.includeCode = e.target.checked;
+      await refreshRepoFiles().catch(() => {});
+    });
+    document.getElementById("filesRefresh")?.addEventListener("click", () => refreshRepoFiles().catch(() => {}));
+    document.getElementById("selAll")?.addEventListener("click", () => { studio.files.forEach((f) => studio.selected.add(f.path)); renderSide(studio.lastActive); });
+    document.getElementById("selDocs")?.addEventListener("click", () => { studio.selected = new Set(studio.files.filter((f) => f.is_doc).map((f) => f.path)); renderSide(studio.lastActive); });
+    document.getElementById("selNone")?.addEventListener("click", () => { studio.selected.clear(); renderSide(studio.lastActive); });
+    side.querySelectorAll(".fchk").forEach((c) => c.onchange = () => {
+      if (c.checked) studio.selected.add(c.dataset.p); else studio.selected.delete(c.dataset.p);
+      const b = document.getElementById("genBtn");
+      if (b) { b.disabled = !studio.selected.size; b.textContent = `Create Academy (${studio.selected.size})`; }
+    });
+    side.querySelectorAll(".file-name").forEach((b) => b.onclick = () => previewRepoFile(b.dataset.p));
+    document.getElementById("genBtn")?.addEventListener("click", () => generateFromSelected());
+  }
+
+  async function previewRepoFile(relPath) {
+    try {
+      const f = await apiJson(`/api/github/file?path=${encodeURIComponent(relPath)}`);
+      main.innerHTML = `<div class="hero"><div class="kicker">Repository Document · ${esc(studio.status?.connected?.repo || "")}</div>
+        <h1>${esc(relPath)}</h1></div>
+        <div class="actions"><button type="button" class="btn small" id="prevToggle">${studio.selected.has(relPath) ? "Included in build ✓" : "Include in build"}</button>
+        <button type="button" class="btn small ghost" id="prevBack">Back to Academy</button></div>
+        <pre class="gh-preview">${esc(f.content)}${f.truncated ? "\n\n… (truncated for preview)" : ""}</pre>`;
+      document.getElementById("prevToggle").onclick = () => {
+        if (studio.selected.has(relPath)) studio.selected.delete(relPath); else studio.selected.add(relPath);
+        renderSide(studio.lastActive); previewRepoFile(relPath);
+      };
+      document.getElementById("prevBack").onclick = () => route();
+    } catch (e) {
+      main.innerHTML = `<div class="empty">${esc(e.message)}</div>`;
+    }
+  }
+
+  async function generateFromSelected() {
+    const files = [...studio.selected];
+    if (!files.length) return;
+    const model = document.getElementById("genModel")?.value || "";
+    try {
+      const res = await apiJson("/api/academy/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ files, model }),
+      });
+      studio.job = { id: res.job_id, status: "running", stage: "starting", current: "Starting…", logs: [] };
+      renderSide(studio.lastActive);
+      const poll = async () => {
+        const j = await apiJson(`/api/jobs/${res.job_id}`);
+        studio.job = j;
+        renderSide(studio.lastActive);
+        if (j.status === "running") { setTimeout(poll, 1000); return; }
+        if (j.status === "done") {
+          studio.tab = "lessons";
+          location.hash = "#/";
+          location.reload();
+        }
+      };
+      setTimeout(poll, 700);
+    } catch (e) {
+      studio.job = { status: "error", error: e.message };
+      renderSide(studio.lastActive);
+    }
+  }
+
+  function downloadIconPng() {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement("canvas");
+      c.width = 512; c.height = 512;
+      c.getContext("2d").drawImage(img, 0, 0, 512, 512);
+      c.toBlob((blob) => {
+        if (!blob) return;
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "academy-kit-icon.png";
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      }, "image/png");
+    };
+    img.src = "assets/icon.svg";
+  }
+
+  async function openConnectModal() {
+    hideAll();
+    modal.hidden = false; document.body.classList.add("noscroll");
+    if (!studio.available) {
+      try { studio.status = await apiJson("/api/github/status"); studio.available = true; } catch { studio.available = false; }
+    }
+    if (!studio.available) {
+      modal.innerHTML = `<div class="vbox gh-modal"><div class="vh"><div class="gh-brand"><img src="assets/icon.svg" alt="" width="44" height="44"><div><div class="lbl">GitHub Studio</div><h2>Local Server Required</h2></div></div><button class="tp-x" type="button" aria-label="Close">×</button></div>
+        <p class="simple">Start this academy with <code>python3 skills/academy/engine/serve.py</code> to connect GitHub organizations, browse files, and build academies locally.</p></div>`;
+      modal.querySelector(".tp-x").onclick = closeViz;
+      return;
+    }
+    const app = studio.status?.app || {};
+    const defWs = studio.status?.default_workspace || "~/academies";
+    modal.innerHTML = `<div class="vbox gh-modal"><div class="vh"><div class="gh-brand"><img src="assets/icon.svg" alt="" width="44" height="44"><div><div class="lbl">GitHub App Integration · Private &amp; Local-First</div><h2>Connect GitHub Repository</h2></div></div><button class="tp-x" type="button" aria-label="Close">×</button></div>
+      <div id="ghAppArea"></div>
+      <div class="gh-card" id="ghUrlCard">
+        <div class="gh-row"><strong>Or connect by repository URL</strong><span class="simple">Works for public repos or local git credentials</span></div>
+        <div class="gh-grid">
+          <label class="gh-field full">Repository URL<input id="urlRepo" placeholder="https://github.com/org/docs-repo" value="${esc(studio.status?.connected?.repo_url || "")}"></label>
+          <label class="gh-field">Branch (optional)<input id="urlBranch" placeholder="main" value="${esc(studio.status?.connected?.branch || "")}"></label>
+          <label class="gh-field">Docs subfolder (optional)<input id="urlDocs" placeholder="docs" value="${esc(studio.status?.connected?.docs_root || "")}"></label>
+          <label class="gh-field">Academy folder (outside kit)<input id="urlOut" placeholder="${esc(defWs)}/repo-academy" value="${esc(studio.status?.connected?.academy_dir || "")}"></label>
+          <label class="gh-field">Reader language (optional)<input id="urlReader" placeholder="e.g. German, Persian"></label>
+        </div>
+        <div class="gh-row"><span class="tp-err" id="urlErr"></span><button type="button" class="btn small" id="urlConnectBtn">Fetch Repository Files</button></div>
+      </div></div>`;
+    modal.querySelector(".tp-x").onclick = closeViz;
+
+    const appArea = modal.querySelector("#ghAppArea");
+    const renderAppArea = async () => {
+      if (!app.configured) {
+        appArea.innerHTML = `<div class="gh-card">
+          <div class="gh-row"><div class="gh-brand"><img src="assets/icon.svg" alt="" width="36" height="36"><div><strong>Register GitHub App in your Organization</strong><div class="simple">Avoids user API limits, supports org-wide repo selection &amp; webhooks. Secrets stay in <code>~/.config/academy-kit/</code>.</div></div></div>
+            <button type="button" class="btn small ghost" id="dlIconBtn">Download PNG Icon</button></div>
+          <div class="gh-grid">
+            <label class="gh-field">GitHub Organization (or blank for personal)<input id="ghOrg" placeholder="your-org-name"></label>
+            <label class="gh-field">App Name<input id="ghAppName" value="Academy Kit"></label>
+          </div>
+          <div class="gh-row"><span class="tp-err" id="mfErr"></span><button type="button" class="btn small" id="mfCreateBtn">Create GitHub App in Org →</button></div>
+          <details class="vsrc"><summary>Already created an App? Enter App ID &amp; PEM key</summary>
+            <div class="gh-grid" style="margin-top:8px">
+              <label class="gh-field">App ID<input id="manId" placeholder="123456"></label>
+              <label class="gh-field">Webhook Secret (optional)<input id="manSec" type="password" placeholder="optional"></label>
+              <label class="gh-field full">Private Key (.pem)<textarea id="manPem" rows="4" placeholder="Paste your GitHub App .pem private key here"></textarea></label>
+            </div>
+            <div class="gh-row" style="margin-top:8px"><span class="tp-err" id="manErr"></span><button type="button" class="btn small" id="manSaveBtn">Verify &amp; Save App</button></div>
+          </details>
+        </div>`;
+        appArea.querySelector("#dlIconBtn").onclick = downloadIconPng;
+        appArea.querySelector("#mfCreateBtn").onclick = async () => {
+          const err = appArea.querySelector("#mfErr"); err.textContent = "";
+          try {
+            const res = await apiJson("/api/github/manifest", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ org: appArea.querySelector("#ghOrg").value.trim(), name: appArea.querySelector("#ghAppName").value.trim() }),
+            });
+            const f = document.createElement("form");
+            f.method = "POST"; f.action = res.action_url;
+            const inp = document.createElement("input");
+            inp.type = "hidden"; inp.name = "manifest"; inp.value = JSON.stringify(res.manifest);
+            f.appendChild(inp); document.body.appendChild(f); f.submit();
+          } catch (e) { err.textContent = e.message; }
+        };
+        appArea.querySelector("#manSaveBtn").onclick = async () => {
+          const err = appArea.querySelector("#manErr"); err.textContent = "";
+          try {
+            const st = await apiJson("/api/github/app", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ app_id: appArea.querySelector("#manId").value, pem: appArea.querySelector("#manPem").value, webhook_secret: appArea.querySelector("#manSec").value }),
+            });
+            studio.status.app = st; Object.assign(app, st); renderAppArea();
+          } catch (e) { err.textContent = e.message; }
+        };
+        return;
+      }
+
+      appArea.innerHTML = `<div class="gh-card">
+        <div class="gh-row"><div class="gh-brand"><img src="assets/icon.svg" alt="" width="34" height="34"><div><strong>${esc(app.name)}</strong> <span class="file-badge synced">App #${esc(app.app_id)}</span><div class="simple">${app.owner ? `Owner: ${esc(app.owner)} · ` : ""}Read-only installation tokens</div></div></div>
+          <div style="display:flex;gap:8px">${app.install_url ? `<a class="btn small ghost" href="${esc(app.install_url)}" target="_blank" rel="noopener">Install on Org / Repos</a>` : ""}
+          <button type="button" class="btn small ghost" id="appDiscBtn">Reset App</button></div></div>
+        <div id="instArea"><div class="bar"></div></div>
+      </div>`;
+      appArea.querySelector("#appDiscBtn").onclick = async () => {
+        const st = await apiJson("/api/github/app/disconnect", { method: "POST", body: "{}" });
+        Object.keys(app).forEach((k) => delete app[k]); Object.assign(app, st); studio.status.app = st; renderAppArea();
+      };
+      try {
+        const { installations } = await apiJson("/api/github/installations");
+        const instArea = appArea.querySelector("#instArea");
+        if (!installations.length) {
+          instArea.innerHTML = `<p class="simple">No organization has installed this App yet. Click <b>Install on Org / Repos</b> above, select your repositories, then reopen Connect.</p>`;
+          return;
+        }
+        instArea.innerHTML = `<div class="gh-grid">
+          <label class="gh-field">Organization / Account<select id="instSel">${installations.map((i) => `<option value="${esc(i.id)}">${esc(i.account)} (${esc(i.type)})</option>`).join("")}</select></label>
+          <label class="gh-field">Repository<select id="repoSel"><option>Loading…</option></select></label>
+          <label class="gh-field">Branch<select id="branchSel"><option value="">default</option></select></label>
+          <label class="gh-field">Docs subfolder (optional)<input id="appDocs" placeholder="docs or leave blank"></label>
+          <label class="gh-field">Academy folder (outside kit)<input id="appOut" placeholder="${esc(defWs)}/repo-academy"></label>
+          <label class="gh-field">Reader language (optional)<input id="appReader" placeholder="e.g. German, Persian"></label>
+        </div>
+        <div class="gh-row"><label class="gh-check"><input type="checkbox" id="appIncCode"> Include code files alongside markdown docs</label>
+          <span class="tp-err" id="appErr"></span><button type="button" class="btn small" id="appFetchBtn">Fetch Repository Files</button></div>`;
+
+        const instSel = instArea.querySelector("#instSel");
+        const repoSel = instArea.querySelector("#repoSel");
+        const branchSel = instArea.querySelector("#branchSel");
+        const appOut = instArea.querySelector("#appOut");
+        let reposList = [];
+        const loadRepos = async () => {
+          repoSel.innerHTML = `<option>Loading…</option>`;
+          const d = await apiJson(`/api/github/repos?installation_id=${encodeURIComponent(instSel.value)}`);
+          reposList = d.repos || [];
+          repoSel.innerHTML = reposList.length
+            ? reposList.map((r) => `<option value="${esc(r.full_name)}">${esc(r.full_name)}${r.private ? " (private)" : ""}</option>`).join("")
+            : `<option value="">No repositories granted</option>`;
+          if (reposList.length) await loadBranches();
+        };
+        const loadBranches = async () => {
+          const full = repoSel.value;
+          const rObj = reposList.find((x) => x.full_name === full);
+          if (rObj) appOut.value = `${defWs}/${rObj.name}-academy`;
+          if (!full) return;
+          const b = await apiJson(`/api/github/branches?installation_id=${encodeURIComponent(instSel.value)}&repo=${encodeURIComponent(full)}`).catch(() => ({ branches: [] }));
+          const list = b.branches?.length ? b.branches : [rObj?.default_branch || "main"];
+          branchSel.innerHTML = list.map((name) => `<option value="${esc(name)}" ${name === rObj?.default_branch ? "selected" : ""}>${esc(name)}</option>`).join("");
+        };
+        instSel.onchange = loadRepos;
+        repoSel.onchange = loadBranches;
+        await loadRepos();
+
+        instArea.querySelector("#appFetchBtn").onclick = async () => {
+          const err = instArea.querySelector("#appErr"); err.textContent = "";
+          const btn = instArea.querySelector("#appFetchBtn"); btn.disabled = true; btn.textContent = "Cloning…";
+          try {
+            const res = await apiJson("/api/github/connect", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                installation_id: Number(instSel.value),
+                full_name: repoSel.value,
+                branch: branchSel.value,
+                docs_root: instArea.querySelector("#appDocs").value.trim(),
+                academy_dir: appOut.value.trim(),
+                reader: instArea.querySelector("#appReader").value.trim(),
+                include_code: instArea.querySelector("#appIncCode").checked,
+              }),
+            });
+            studio.status = res.status;
+            studio.files = res.files || [];
+            studio.includeCode = instArea.querySelector("#appIncCode").checked;
+            studio.selected = new Set(studio.files.filter((f) => f.is_doc).map((f) => f.path));
+            studio.tab = "files";
+            updateConnectBadge();
+            closeViz();
+            renderSide(studio.lastActive);
+          } catch (e) {
+            err.textContent = e.message;
+          } finally { btn.disabled = false; btn.textContent = "Fetch Repository Files"; }
+        };
+      } catch (e) {
+        appArea.querySelector("#instArea").innerHTML = `<div class="tp-err">${esc(e.message)}</div>`;
+      }
+    };
+    renderAppArea();
+
+    modal.querySelector("#urlConnectBtn").onclick = async () => {
+      const err = modal.querySelector("#urlErr"); err.textContent = "";
+      const btn = modal.querySelector("#urlConnectBtn"); btn.disabled = true; btn.textContent = "Cloning…";
+      try {
+        const res = await apiJson("/api/github/connect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            repo_url: modal.querySelector("#urlRepo").value.trim(),
+            branch: modal.querySelector("#urlBranch").value.trim(),
+            docs_root: modal.querySelector("#urlDocs").value.trim(),
+            academy_dir: modal.querySelector("#urlOut").value.trim(),
+            reader: modal.querySelector("#urlReader").value.trim(),
+          }),
+        });
+        studio.status = res.status;
+        studio.files = res.files || [];
+        studio.selected = new Set(studio.files.filter((f) => f.is_doc).map((f) => f.path));
+        studio.tab = "files";
+        updateConnectBadge();
+        closeViz();
+        renderSide(studio.lastActive);
+      } catch (e) {
+        err.textContent = e.message;
+      } finally { btn.disabled = false; btn.textContent = "Fetch Repository Files"; }
+    };
+  }
+
+  if (connectBtn) connectBtn.onclick = openConnectModal;
+  (async () => {
+    try {
+      studio.status = await apiJson("/api/github/status");
+      studio.available = true;
+      updateConnectBadge();
+      const [mRes, fRes] = await Promise.all([
+        apiJson("/api/ai/models").catch(() => ({ models: [] })),
+        studio.status?.connected ? apiJson("/api/github/files").catch(() => ({ files: [] })) : Promise.resolve({ files: [] }),
+      ]);
+      studio.models = mRes.models || [];
+      studio.files = fRes.files || [];
+      if (studio.files.length) {
+        studio.selected = new Set(studio.files.filter((f) => f.is_doc).map((f) => f.path));
+        renderSide(studio.lastActive);
+      }
+      if (/[?&]github_(?:installed|setup)=/.test(location.search)) {
+        history.replaceState({}, "", location.pathname + location.hash);
+        openConnectModal();
+      }
+    } catch { studio.available = false; }
+  })();
 
   function route() {
     const [, id, anchor] = (location.hash || "#/").split("/");

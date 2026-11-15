@@ -8,6 +8,9 @@ __pycache__/
 *.pyc
 .DS_Store
 .env
+github-app.json
+*.pem
+*.key
 
 # Never part of the tool: fonts, media, documents, archives (tools/check_public.py also refuses them)
 *.woff
