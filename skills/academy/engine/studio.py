@@ -286,13 +286,13 @@ def list_ollama_models(ollama_url):
         return []
 
 
-def _ollama_chat_raw(ollama_url, model, messages, timeout=180, on_progress=None, disable_thinking=True, temperature=0.2):
+def _ollama_chat_raw(ollama_url, model, messages, timeout=180, on_progress=None, disable_thinking=True, temperature=0.2, num_predict=4096):
     body = {
         "model": model,
         "messages": messages,
         "stream": True,
         "format": "json",
-        "options": {"temperature": temperature, "num_ctx": 32768},
+        "options": {"temperature": temperature, "num_ctx": 32768, "num_predict": num_predict, "repeat_penalty": 1.08},
     }
     if disable_thinking:
         body["think"] = False
@@ -305,6 +305,7 @@ def _ollama_chat_raw(ollama_url, model, messages, timeout=180, on_progress=None,
     )
     parts = []
     tokens = 0
+    done_reason = ""
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             for raw_line in r:
@@ -319,13 +320,14 @@ def _ollama_chat_raw(ollama_url, model, messages, timeout=180, on_progress=None,
                     if on_progress and tokens % 15 == 0:
                         on_progress(tokens)
                 if chunk.get("done"):
+                    done_reason = chunk.get("done_reason") or ""
                     break
     except urllib.error.HTTPError as e:
         err_text = e.read().decode("utf-8", errors="replace") if e.fp else str(e)
         if disable_thinking and e.code == 400 and "think" in err_text.lower():
             return _ollama_chat_raw(
                 ollama_url, model, messages,
-                timeout=timeout, on_progress=on_progress, disable_thinking=False, temperature=temperature,
+                timeout=timeout, on_progress=on_progress, disable_thinking=False, temperature=temperature, num_predict=num_predict,
             )
         raise RuntimeError(f"Ollama error ({e.code}) for {model}: {err_text[:240]}")
     except TimeoutError:
@@ -335,17 +337,20 @@ def _ollama_chat_raw(ollama_url, model, messages, timeout=180, on_progress=None,
         if isinstance(reason, TimeoutError) or "timed out" in str(reason).lower():
             raise RuntimeError(f"Ollama timed out waiting for {model} after {timeout}s")
         raise RuntimeError(f"Ollama is not reachable at {ollama_url}: {reason}")
-    return "".join(parts).strip()
+    text = "".join(parts).strip()
+    if done_reason == "length" and not text.endswith("}"):
+        raise RuntimeError(f"Model hit {num_predict}-token output cap before closing JSON")
+    return text
 
 
-def _ollama_chat(ollama_url, model, system_prompt, user_prompt, timeout=180, on_progress=None, disable_thinking=True, temperature=0.2):
+def _ollama_chat(ollama_url, model, system_prompt, user_prompt, timeout=180, on_progress=None, disable_thinking=True, temperature=0.2, num_predict=4096):
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_prompt},
     ]
     text = _ollama_chat_raw(
         ollama_url, model, messages,
-        timeout=timeout, on_progress=on_progress, disable_thinking=disable_thinking, temperature=temperature,
+        timeout=timeout, on_progress=on_progress, disable_thinking=disable_thinking, temperature=temperature, num_predict=num_predict,
     )
     try:
         return _extract_json(text)
@@ -356,7 +361,7 @@ def _ollama_chat(ollama_url, model, system_prompt, user_prompt, timeout=180, on_
         ]
         repaired = _ollama_chat_raw(
             ollama_url, model, repair_msgs,
-            timeout=120, on_progress=on_progress, disable_thinking=disable_thinking, temperature=0.0,
+            timeout=120, on_progress=on_progress, disable_thinking=disable_thinking, temperature=0.0, num_predict=num_predict,
         )
         return _extract_json(repaired)
 
@@ -541,7 +546,7 @@ def _plan_lessons(ollama_url, model, repo_label, file_docs, on_progress=None, lo
     )
     user_p = f"Repository: {repo_label}\nSelected {len(file_docs)} files:\n{listing}"
     try:
-        plan = _ollama_chat(ollama_url, model, sys_p, user_p, timeout=180, on_progress=on_progress)
+        plan = _ollama_chat(ollama_url, model, sys_p, user_p, timeout=180, on_progress=on_progress, num_predict=2048)
         valid_paths = {d["path"] for d in file_docs}
         lessons = []
         covered = set()

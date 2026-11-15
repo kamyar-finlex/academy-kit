@@ -106,7 +106,7 @@
         <div class="file-actions">
           <label>Local model<select id="genModel">${modelOpts}</select></label>
           ${studio.job && studio.job.status === "running"
-            ? `<div class="lbl">${esc(studio.job.current || studio.job.stage)}</div><div class="bar"></div>`
+            ? `<div class="lbl">${esc(studio.job.current || studio.job.stage)}</div><div class="bar"></div>${studio.job.logs?.length ? `<div class="simple" style="font-size:11.5px;margin-top:4px">${esc(studio.job.logs[studio.job.logs.length - 1])}</div>` : ""}`
             : `<button type="button" class="btn small" id="genBtn" ${studio.selected.size ? "" : "disabled"}>Create Academy (${studio.selected.size})</button>`}
           ${studio.job?.error ? `<div class="tp-err" style="font-size:12.5px">${esc(studio.job.error)}</div>` : ""}
         </div>
@@ -1094,6 +1094,33 @@
     }
   }
 
+  function pollJob(jobId) {
+    sessionStorage.setItem("studioJob", jobId);
+    let misses = 0;
+    const poll = async () => {
+      try {
+        const j = await apiJson(`/api/jobs/${jobId}`);
+        misses = 0;
+        studio.job = j;
+        renderSide(studio.lastActive);
+        if (j.status === "running") { setTimeout(poll, 1200); return; }
+        sessionStorage.removeItem("studioJob");
+        if (j.status === "done") {
+          studio.tab = "lessons";
+          location.hash = "#/";
+          location.reload();
+        }
+      } catch (e) {
+        misses++;
+        if (misses < 8) { setTimeout(poll, 2500); return; }
+        sessionStorage.removeItem("studioJob");
+        studio.job = { status: "error", error: e.message || "Lost connection to server" };
+        renderSide(studio.lastActive);
+      }
+    };
+    setTimeout(poll, 700);
+  }
+
   async function generateFromSelected() {
     const files = [...studio.selected];
     if (!files.length) return;
@@ -1107,23 +1134,7 @@
       });
       studio.job = { id: res.job_id, status: "running", stage: "starting", current: "Starting…", logs: [] };
       renderSide(studio.lastActive);
-      const poll = async () => {
-        try {
-          const j = await apiJson(`/api/jobs/${res.job_id}`);
-          studio.job = j;
-          renderSide(studio.lastActive);
-          if (j.status === "running") { setTimeout(poll, 1000); return; }
-          if (j.status === "done") {
-            studio.tab = "lessons";
-            location.hash = "#/";
-            location.reload();
-          }
-        } catch (e) {
-          studio.job = { status: "error", error: e.message || "Lost connection to server" };
-          renderSide(studio.lastActive);
-        }
-      };
-      setTimeout(poll, 700);
+      pollJob(res.job_id);
     } catch (e) {
       studio.job = { status: "error", error: e.message };
       renderSide(studio.lastActive);
@@ -1446,6 +1457,12 @@
       if (studio.files.length) {
         studio.selected = new Set(studio.files.filter((f) => f.is_doc).map((f) => f.path));
         renderSide(studio.lastActive);
+      }
+      const savedJob = sessionStorage.getItem("studioJob");
+      if (savedJob) {
+        const j = await apiJson(`/api/jobs/${encodeURIComponent(savedJob)}`).catch(() => null);
+        if (j && j.status === "running") { studio.job = j; studio.tab = "files"; renderSide(studio.lastActive); pollJob(savedJob); }
+        else sessionStorage.removeItem("studioJob");
       }
       if (/[?&]github_(?:installed|setup)=/.test(location.search)) {
         history.replaceState({}, "", location.pathname + location.hash);
