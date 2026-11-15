@@ -181,7 +181,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         try:
             body, raw = self._read_json_body()
             if path == "/api/github/manifest":
-                return self._send_json(200, github_app.build_manifest(self._base_url(), body.get("org", ""), body.get("name", "")))
+                return self._send_json(200, github_app.build_manifest(self._base_url(), body.get("org", ""), body.get("name", ""), body.get("webhook_url", "")))
             if path == "/api/github/app":
                 return self._send_json(200, github_app.save_manual_config(body.get("app_id", ""), body.get("pem", ""), body.get("webhook_secret", "")))
             if path == "/api/github/app/disconnect":

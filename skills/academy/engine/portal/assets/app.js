@@ -1163,6 +1163,7 @@
           <div class="gh-grid">
             <label class="gh-field">GitHub Organization (or blank for personal)<input id="ghOrg" placeholder="your-org-name"></label>
             <label class="gh-field">App Name<input id="ghAppName" value="Academy Kit"></label>
+            <label class="gh-field full">Webhook URL (optional, leave blank on localhost)<input id="ghHookUrl" placeholder="https://your-domain.example/api/github/webhook"></label>
           </div>
           <div class="gh-row"><span class="tp-err" id="mfErr"></span><button type="button" class="btn small" id="mfCreateBtn">Create GitHub App in Org →</button></div>
           <details class="vsrc"><summary>Already created an App? Enter App ID &amp; PEM key</summary>
@@ -1181,7 +1182,11 @@
             const res = await apiJson("/api/github/manifest", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ org: appArea.querySelector("#ghOrg").value.trim(), name: appArea.querySelector("#ghAppName").value.trim() }),
+              body: JSON.stringify({
+                org: appArea.querySelector("#ghOrg").value.trim(),
+                name: appArea.querySelector("#ghAppName").value.trim(),
+                webhook_url: appArea.querySelector("#ghHookUrl").value.trim(),
+              }),
             });
             const f = document.createElement("form");
             f.method = "POST"; f.action = res.action_url;

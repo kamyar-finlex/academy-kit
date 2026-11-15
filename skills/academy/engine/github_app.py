@@ -12,6 +12,7 @@ import hmac
 import json
 import os
 import re
+import secrets
 import shutil
 import stat
 import subprocess
@@ -19,6 +20,7 @@ import tempfile
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 GITHUB_API = os.environ.get("ACADEMY_GITHUB_API", "https://api.github.com").rstrip("/")
@@ -168,16 +170,35 @@ def _api(path, method="GET", token=None, body=None, bearer_jwt=None):
         raise RuntimeError(f"GitHub API ({e.code}): {detail}")
 
 
-def build_manifest(base_url, org="", name=""):
+def _is_local_url(url):
+    host = (urllib.parse.urlparse(url).hostname or "").lower()
+    return host in ("localhost", "127.0.0.1", "0.0.0.0", "::1")
+
+
+def build_manifest(base_url, org="", name="", webhook_url=""):
     """Build a GitHub App Manifest payload for one-click org or account registration."""
     base = base_url.rstrip("/")
     clean_org = re.sub(r"[^A-Za-z0-9-]", "", org or "")
-    suffix = re.sub(r"[^a-z0-9-]", "-", (clean_org or "local").lower()).strip("-")[:14]
-    app_name = (name or f"Academy Kit ({suffix})" if suffix else "Academy Kit")[:34]
+    raw_name = (name or "").strip()
+    if not raw_name or raw_name.lower() == "academy kit":
+        tag = clean_org[:14] if clean_org else secrets.token_hex(2)
+        app_name = f"Academy Kit {tag}"[:34]
+    else:
+        app_name = raw_name[:34]
     action_url = (
         f"https://github.com/organizations/{clean_org}/settings/apps/new"
         if clean_org else "https://github.com/settings/apps/new"
     )
+    hook = (webhook_url or "").strip()
+    if not hook and not _is_local_url(base) and base.startswith("https://"):
+        hook = base + "/api/github/webhook"
+    if hook and not _is_local_url(hook):
+        hook_attributes = {"url": hook, "active": True}
+        default_events = ["push"]
+    else:
+        # GitHub requires a non-blank public URL inside hook_attributes even when webhooks are off.
+        hook_attributes = {"url": "https://example.com/api/github/webhook", "active": False}
+        default_events = []
     manifest = {
         "name": app_name,
         "url": base + "/",
@@ -185,11 +206,12 @@ def build_manifest(base_url, org="", name=""):
         "setup_url": base + "/?github_installed=1",
         "setup_on_update": True,
         "public": False,
+        "hook_attributes": hook_attributes,
         "default_permissions": {
             "contents": "read",
             "metadata": "read",
         },
-        "default_events": ["push"],
+        "default_events": default_events,
     }
     return {"action_url": action_url, "manifest": manifest}
 
