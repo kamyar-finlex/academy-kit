@@ -298,14 +298,15 @@ tr.speaking { box-shadow: none; }
 .file-actions { display: grid; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
 .file-actions label { display: grid; gap: 3px; font-size: 12px; color: var(--fg3); }
 .file-actions select, .file-actions input { font: inherit; font-size: 13px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
-.gh-modal { width: min(760px, 100%); }
-.gh-brand { display: flex; align-items: center; gap: 12px; }
+.gh-modal { width: min(760px, 100%); overflow-x: hidden; }
+.gh-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.gh-brand > div { min-width: 0; }
 .gh-brand img { border-radius: 10px; flex: none; }
-.gh-card { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 10px; background: var(--bg); }
-.gh-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
-.gh-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.gh-field { display: grid; gap: 4px; font-size: 13px; color: var(--fg2); }
-.gh-field input, .gh-field select, .gh-field textarea { font: inherit; font-size: 14px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--fg); }
+.gh-card { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 10px; background: var(--bg); min-width: 0; }
+.gh-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; min-width: 0; }
+.gh-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; min-width: 0; }
+.gh-field { display: grid; gap: 4px; font-size: 13px; color: var(--fg2); min-width: 0; }
+.gh-field input, .gh-field select, .gh-field textarea { width: 100%; min-width: 0; max-width: 100%; font: inherit; font-size: 14px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--fg); }
 .gh-field.full { grid-column: 1 / -1; }
 .gh-check { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--fg2); cursor: pointer; }
 .gh-log { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; max-height: 120px; overflow: auto; color: var(--fg2); white-space: pre-wrap; }
