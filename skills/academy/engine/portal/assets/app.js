@@ -1128,9 +1128,7 @@
   async function openConnectModal() {
     hideAll();
     modal.hidden = false; document.body.classList.add("noscroll");
-    if (!studio.available) {
-      try { studio.status = await apiJson("/api/github/status"); studio.available = true; } catch { studio.available = false; }
-    }
+    try { studio.status = await apiJson("/api/github/status"); studio.available = true; } catch { studio.available = false; }
     if (!studio.available) {
       modal.innerHTML = `<div class="vbox gh-modal"><div class="vh"><div class="gh-brand"><img src="assets/icon.svg" alt="" width="44" height="44"><div><div class="lbl">GitHub Studio</div><h2>Local Server Required</h2></div></div><button class="tp-x" type="button" aria-label="Close">×</button></div>
         <p class="simple">Start this academy with <code>python3 skills/academy/engine/serve.py</code> to connect GitHub organizations, browse files, and build academies locally.</p></div>`;
@@ -1139,20 +1137,51 @@
     }
     const app = studio.status?.app || {};
     const defWs = studio.status?.default_workspace || "~/academies";
+    const langs = studio.status?.languages || ["German", "Persian", "Arabic", "French", "Spanish", "Turkish", "Polish", "Russian", "Ukrainian", "Hindi", "Chinese", "Hebrew", "English"];
+    const langOptions = `<option value="">None (lessons only)</option>` + langs.map((x) => `<option value="${esc(x)}">${esc(x)}</option>`).join("");
+    const workspaces = studio.status?.workspaces || [];
+    const wsHtml = workspaces.length > 1 ? `<div class="gh-card">
+      <div class="gh-row"><strong>Workspaces</strong><span class="simple">Each repository lives in its own isolated academy folder</span></div>
+      <div class="gh-row"><select id="wsSel" style="flex:1;min-width:0;font:inherit;font-size:14px;padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--fg)">${workspaces.map((w) => `<option value="${esc(w.dir)}" ${w.active ? "selected" : ""}>${esc(w.title)}${w.repo ? ` · ${esc(w.repo)}` : ""} (${w.lessons} lessons)</option>`).join("")}</select>
+        <button type="button" class="btn small ghost" id="wsOpenBtn">Switch Workspace</button></div>
+    </div>` : "";
+    const urlInner = `<div class="gh-grid">
+      <label class="gh-field full">Repository URL<input id="urlRepo" placeholder="https://github.com/org/docs-repo" value="${esc(studio.status?.connected?.repo_url || "")}"></label>
+      <label class="gh-field">Branch (optional)<input id="urlBranch" placeholder="main" value="${esc(studio.status?.connected?.branch || "")}"></label>
+      <label class="gh-field">Docs subfolder (optional)<input id="urlDocs" placeholder="docs" value="${esc(studio.status?.connected?.docs_root || "")}"></label>
+      <label class="gh-field">Reader language<select id="urlReader">${langOptions}</select></label>
+      <label class="gh-field">Workspace folder (auto-filled)<input id="urlOut" placeholder="${esc(defWs)}/org/repo" value="${esc(studio.status?.connected?.academy_dir || "")}"></label>
+    </div>
+    <div class="gh-row"><span class="tp-err" id="urlErr"></span><button type="button" class="btn small" id="urlConnectBtn">Fetch Repository Files</button></div>`;
+    const urlBlock = app.configured
+      ? `<details class="gh-card" id="ghUrlCard"><summary style="cursor:pointer;font-size:14px;color:var(--fg2)">Or connect by custom Git URL</summary>${urlInner}</details>`
+      : `<div class="gh-card" id="ghUrlCard"><div class="gh-row"><strong>Or connect by repository URL</strong><span class="simple">Works for public repos or local git credentials</span></div>${urlInner}</div>`;
     modal.innerHTML = `<div class="vbox gh-modal"><div class="vh"><div class="gh-brand"><img src="assets/icon.svg" alt="" width="44" height="44"><div><div class="lbl">GitHub App Integration · Private &amp; Local-First</div><h2>Connect GitHub Repository</h2></div></div><button class="tp-x" type="button" aria-label="Close">×</button></div>
-      <div id="ghAppArea"></div>
-      <div class="gh-card" id="ghUrlCard">
-        <div class="gh-row"><strong>Or connect by repository URL</strong><span class="simple">Works for public repos or local git credentials</span></div>
-        <div class="gh-grid">
-          <label class="gh-field full">Repository URL<input id="urlRepo" placeholder="https://github.com/org/docs-repo" value="${esc(studio.status?.connected?.repo_url || "")}"></label>
-          <label class="gh-field">Branch (optional)<input id="urlBranch" placeholder="main" value="${esc(studio.status?.connected?.branch || "")}"></label>
-          <label class="gh-field">Docs subfolder (optional)<input id="urlDocs" placeholder="docs" value="${esc(studio.status?.connected?.docs_root || "")}"></label>
-          <label class="gh-field">Academy folder (outside kit)<input id="urlOut" placeholder="${esc(defWs)}/repo-academy" value="${esc(studio.status?.connected?.academy_dir || "")}"></label>
-          <label class="gh-field">Reader language (optional)<input id="urlReader" placeholder="e.g. German, Persian"></label>
-        </div>
-        <div class="gh-row"><span class="tp-err" id="urlErr"></span><button type="button" class="btn small" id="urlConnectBtn">Fetch Repository Files</button></div>
-      </div></div>`;
+      ${wsHtml}<div id="ghAppArea"></div>${urlBlock}</div>`;
     modal.querySelector(".tp-x").onclick = closeViz;
+
+    modal.querySelector("#wsOpenBtn")?.addEventListener("click", async () => {
+      const dir = modal.querySelector("#wsSel").value;
+      const res = await apiJson("/api/academies/switch", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ academy_dir: dir }) });
+      if (res.built) { location.reload(); return; }
+      studio.status = res.status;
+      await refreshRepoFiles().catch(() => {});
+      studio.tab = "files";
+      updateConnectBadge();
+      closeViz();
+      renderSide(studio.lastActive);
+    });
+
+    const urlRepoEl = modal.querySelector("#urlRepo");
+    const urlOutEl = modal.querySelector("#urlOut");
+    let urlOutTouched = false;
+    urlOutEl?.addEventListener("input", () => { urlOutTouched = true; });
+    urlRepoEl?.addEventListener("input", () => {
+      if (urlOutTouched) return;
+      const parts = urlRepoEl.value.trim().replace(/^https?:\/\/[^/]+\/|\.git$/g, "").split("/").filter(Boolean);
+      if (parts.length >= 2) urlOutEl.value = `${defWs}/${parts[parts.length - 2].toLowerCase()}/${parts[parts.length - 1].toLowerCase()}`;
+      else if (parts.length === 1) urlOutEl.value = `${defWs}/${parts[0].toLowerCase()}`;
+    });
 
     const appArea = modal.querySelector("#ghAppArea");
     const renderAppArea = async () => {
@@ -1210,7 +1239,7 @@
       }
 
       appArea.innerHTML = `<div class="gh-card">
-        <div class="gh-row"><div class="gh-brand"><img src="assets/icon.svg" alt="" width="34" height="34"><div><strong>${esc(app.name)}</strong> <span class="file-badge synced">App #${esc(app.app_id)}</span><div class="simple">${app.owner ? `Owner: ${esc(app.owner)} · ` : ""}Read-only installation tokens</div></div></div>
+        <div class="gh-row"><div class="gh-brand"><img src="assets/icon.svg" alt="" width="34" height="34"><div><strong>${esc(app.name)}</strong> <span class="file-badge synced">App #${esc(app.app_id)}</span><div class="simple">Select one repository below to create or update its own isolated academy workspace.</div></div></div>
           <div style="display:flex;gap:8px">${app.install_url ? `<a class="btn small ghost" href="${esc(app.install_url)}" target="_blank" rel="noopener">Install on Org / Repos</a>` : ""}
           <button type="button" class="btn small ghost" id="appDiscBtn">Reset App</button></div></div>
         <div id="instArea"><div class="bar"></div></div>
@@ -1228,40 +1257,60 @@
         }
         instArea.innerHTML = `<div class="gh-grid">
           <label class="gh-field">Organization / Account<select id="instSel">${installations.map((i) => `<option value="${esc(i.id)}">${esc(i.account)} (${esc(i.type)})</option>`).join("")}</select></label>
-          <label class="gh-field">Repository<select id="repoSel"><option>Loading…</option></select></label>
+          <label class="gh-field">Repository (isolated workspace)<select id="repoSel"><option>Loading…</option></select></label>
           <label class="gh-field">Branch<select id="branchSel"><option value="">default</option></select></label>
-          <label class="gh-field">Docs subfolder (optional)<input id="appDocs" placeholder="docs or leave blank"></label>
-          <label class="gh-field">Academy folder (outside kit)<input id="appOut" placeholder="${esc(defWs)}/repo-academy"></label>
-          <label class="gh-field">Reader language (optional)<input id="appReader" placeholder="e.g. German, Persian"></label>
+          <label class="gh-field">Docs folder<select id="appDocs"><option value="">(Root — entire repository)</option></select></label>
+          <label class="gh-field">Reader language<select id="appReader">${langOptions}</select></label>
+          <label class="gh-field">Workspace path (auto)<input id="appOut" readonly></label>
         </div>
+        <details class="vsrc"><summary>Custom workspace path</summary><label class="gh-field" style="margin-top:6px"><input id="appOutCustom" placeholder="${esc(defWs)}/org/repo"></label></details>
         <div class="gh-row"><label class="gh-check"><input type="checkbox" id="appIncCode"> Include code files alongside markdown docs</label>
           <span class="tp-err" id="appErr"></span><button type="button" class="btn small" id="appFetchBtn">Fetch Repository Files</button></div>`;
 
         const instSel = instArea.querySelector("#instSel");
         const repoSel = instArea.querySelector("#repoSel");
         const branchSel = instArea.querySelector("#branchSel");
+        const docsSel = instArea.querySelector("#appDocs");
         const appOut = instArea.querySelector("#appOut");
+        const appOutCustom = instArea.querySelector("#appOutCustom");
         let reposList = [];
-        const loadRepos = async () => {
-          repoSel.innerHTML = `<option>Loading…</option>`;
-          const d = await apiJson(`/api/github/repos?installation_id=${encodeURIComponent(instSel.value)}`);
-          reposList = d.repos || [];
-          repoSel.innerHTML = reposList.length
-            ? reposList.map((r) => `<option value="${esc(r.full_name)}">${esc(r.full_name)}${r.private ? " (private)" : ""}</option>`).join("")
-            : `<option value="">No repositories granted</option>`;
-          if (reposList.length) await loadBranches();
+        const loadFolders = async () => {
+          const full = repoSel.value, br = branchSel.value;
+          if (!full) return;
+          docsSel.innerHTML = `<option value="">Loading folders…</option>`;
+          const d = await apiJson(`/api/github/folders?installation_id=${encodeURIComponent(instSel.value)}&repo=${encodeURIComponent(full)}&branch=${encodeURIComponent(br)}`).catch(() => ({ folders: [""] }));
+          const list = d.folders?.length ? d.folders : [""];
+          const preferDocs = list.includes("docs") ? "docs" : "";
+          docsSel.innerHTML = list.map((p) => `<option value="${esc(p)}" ${p === preferDocs ? "selected" : ""}>${p ? esc(p + "/") : "(Root — entire repository)"}</option>`).join("");
         };
         const loadBranches = async () => {
           const full = repoSel.value;
           const rObj = reposList.find((x) => x.full_name === full);
-          if (rObj) appOut.value = `${defWs}/${rObj.name}-academy`;
+          if (rObj) {
+            const parts = full.toLowerCase().split("/");
+            const autoPath = parts.length >= 2 ? `${defWs}/${parts[0]}/${parts[1]}` : `${defWs}/${rObj.name.toLowerCase()}`;
+            appOut.value = autoPath;
+            appOutCustom.placeholder = autoPath;
+          }
           if (!full) return;
           const b = await apiJson(`/api/github/branches?installation_id=${encodeURIComponent(instSel.value)}&repo=${encodeURIComponent(full)}`).catch(() => ({ branches: [] }));
           const list = b.branches?.length ? b.branches : [rObj?.default_branch || "main"];
           branchSel.innerHTML = list.map((name) => `<option value="${esc(name)}" ${name === rObj?.default_branch ? "selected" : ""}>${esc(name)}</option>`).join("");
+          await loadFolders();
+        };
+        const loadRepos = async () => {
+          repoSel.innerHTML = `<option>Loading…</option>`;
+          const d = await apiJson(`/api/github/repos?installation_id=${encodeURIComponent(instSel.value)}`);
+          reposList = d.repos || [];
+          const curRepo = studio.status?.connected?.repo || "";
+          repoSel.innerHTML = reposList.length
+            ? reposList.map((r) => `<option value="${esc(r.full_name)}" ${r.full_name === curRepo ? "selected" : ""}>${esc(r.full_name)}${r.private ? " (private)" : ""}</option>`).join("")
+            : `<option value="">No repositories granted</option>`;
+          if (reposList.length) await loadBranches();
         };
         instSel.onchange = loadRepos;
         repoSel.onchange = loadBranches;
+        branchSel.onchange = loadFolders;
         await loadRepos();
 
         instArea.querySelector("#appFetchBtn").onclick = async () => {
@@ -1275,9 +1324,9 @@
                 installation_id: Number(instSel.value),
                 full_name: repoSel.value,
                 branch: branchSel.value,
-                docs_root: instArea.querySelector("#appDocs").value.trim(),
-                academy_dir: appOut.value.trim(),
-                reader: instArea.querySelector("#appReader").value.trim(),
+                docs_root: docsSel.value,
+                academy_dir: appOutCustom.value.trim() || appOut.value.trim(),
+                reader: instArea.querySelector("#appReader").value,
                 include_code: instArea.querySelector("#appIncCode").checked,
               }),
             });

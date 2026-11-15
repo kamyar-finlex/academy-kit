@@ -65,6 +65,7 @@ class StudioState:
 
     def __init__(self, academy, root, port):
         self._lock = threading.Lock()
+        self.default_academy = academy
         self.active_academy = academy
         self.connected_academy = academy if (academy and (academy.cfg.get("source") or {}).get("type") == "git") else None
         self.root = root
@@ -78,7 +79,10 @@ class StudioState:
     def activate(self, academy):
         with self._lock:
             self.active_academy = academy
-            self.connected_academy = academy
+            if (academy.cfg.get("source") or {}).get("type") == "git":
+                self.connected_academy = academy
+            else:
+                self.connected_academy = None
             self.root = academy.out
 
     def set_connected(self, academy):
@@ -88,6 +92,15 @@ class StudioState:
     def get_connected(self):
         with self._lock:
             return self.connected_academy
+
+    def list_workspaces(self):
+        with self._lock:
+            extra = [d.dir for d in (self.default_academy, self.active_academy, self.connected_academy) if d]
+            act_dir = os.path.realpath(self.active_academy.dir) if self.active_academy else ""
+        items = studio.list_workspaces(extra)
+        for item in items:
+            item["active"] = os.path.realpath(item["dir"]) == act_dir
+        return items
 
     def status_payload(self):
         with self._lock:
@@ -110,6 +123,8 @@ class StudioState:
                 "title": act.cfg.get("title", "") if act else "",
             },
             "default_workspace": os.path.expanduser(studio.DEFAULT_WORKSPACE),
+            "languages": studio.available_languages(),
+            "workspaces": self.list_workspaces(),
         }
 
 
@@ -196,8 +211,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     full_name = re.sub(r"^https?://[^/]+/|\.git$", "", repo_url)
                 if not repo_url:
                     return self._send_json(400, {"error": "Repository name or URL is required"})
-                repo_short = full_name.split("/")[-1] or "repo"
-                target_dir = (body.get("academy_dir") or "").strip() or studio.default_academy_dir(repo_short)
+                target_dir = (body.get("academy_dir") or "").strip() or studio.default_academy_dir(full_name)
                 ac, commit = studio.init_or_update_academy(
                     target_dir=target_dir,
                     repo_url=repo_url,
@@ -232,6 +246,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     reader=(body.get("reader") or "").strip(),
                 )
                 return self._send_json(202, {"job_id": job_id})
+            if path == "/api/academies/switch":
+                target = os.path.realpath(os.path.expanduser((body.get("academy_dir") or "").strip()))
+                if not target or not os.path.exists(os.path.join(target, "academy.json")):
+                    return self._send_json(400, {"error": "Workspace not found"})
+                ac = Academy(target)
+                if os.path.exists(os.path.join(ac.out, "index.html")):
+                    self.state.activate(ac)
+                else:
+                    self.state.set_connected(ac)
+                return self._send_json(200, {"status": self.state.status_payload(), "built": os.path.exists(os.path.join(ac.out, "index.html"))})
             if path == "/api/github/webhook":
                 sig = self.headers.get("X-Hub-Signature-256", "")
                 if not github_app.verify_webhook_signature(raw, sig):
@@ -286,6 +310,15 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     if not inst or not repo:
                         return self._send_json(400, {"error": "installation_id and repo are required"})
                     return self._send_json(200, {"branches": github_app.list_repo_branches(inst, repo)})
+                if path == "/api/github/folders":
+                    inst = (qs.get("installation_id") or [""])[0]
+                    repo = (qs.get("repo") or [""])[0]
+                    branch = (qs.get("branch") or ["main"])[0]
+                    if not inst or not repo:
+                        return self._send_json(400, {"error": "installation_id and repo are required"})
+                    return self._send_json(200, {"folders": github_app.list_repo_folders(inst, repo, branch)})
+                if path == "/api/academies":
+                    return self._send_json(200, {"workspaces": self.state.list_workspaces()})
                 if path == "/api/github/files":
                     conn = self.state.get_connected()
                     if not conn:

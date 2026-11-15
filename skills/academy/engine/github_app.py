@@ -362,6 +362,33 @@ def list_repo_branches(installation_id, full_name):
     return [b["name"] for b in batch]
 
 
+SKIP_TREE_PARTS = {"node_modules", "__pycache__", ".venv", "venv", "dist", "build", ".next", "target", "vendor"}
+
+
+def list_repo_folders(installation_id, full_name, branch="main"):
+    """List directory paths in a repository branch via the Git Trees API."""
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", full_name):
+        raise ValueError("Invalid repository name")
+    tok = get_installation_token(installation_id)
+    ref = urllib.parse.quote(branch or "HEAD", safe="")
+    try:
+        res = _api(f"/repos/{full_name}/git/trees/{ref}?recursive=1", token=tok)
+    except RuntimeError:
+        return [""]
+    folders = [""]
+    for item in res.get("tree") or []:
+        if item.get("type") != "tree":
+            continue
+        p = item.get("path") or ""
+        parts = p.split("/")
+        if len(parts) > 3 or any(x.startswith(".") or x in SKIP_TREE_PARTS for x in parts):
+            continue
+        folders.append(p)
+        if len(folders) >= 200:
+            break
+    return folders
+
+
 def _run_git(args, cwd=None, token=None):
     env = dict(os.environ, GIT_TERMINAL_PROMPT="0")
     askpass = None

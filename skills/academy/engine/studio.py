@@ -57,9 +57,53 @@ def ensure_outside_kit(folder):
     return real
 
 
-def default_academy_dir(repo_name):
-    slug = re.sub(r"[^a-z0-9-]+", "-", repo_name.lower()).strip("-") or "repo"
-    return os.path.join(os.path.expanduser(DEFAULT_WORKSPACE), f"{slug}-academy")
+def default_academy_dir(full_name):
+    """Isolate each repository in its own workspace folder: ~/academies/<org>/<repo>."""
+    base = os.path.expanduser(DEFAULT_WORKSPACE)
+    clean = (full_name or "").strip("/")
+    parts = [re.sub(r"[^a-z0-9._-]+", "-", p.lower()).strip("-") for p in clean.split("/") if p]
+    if len(parts) >= 2:
+        return os.path.join(base, parts[-2], parts[-1])
+    slug = parts[0] if parts else "repo"
+    return os.path.join(base, slug)
+
+
+def available_languages():
+    return [k.capitalize() for k in sorted(LANGS.keys())]
+
+
+def list_workspaces(extra_dirs=()):
+    """Discover isolated academy workspaces outside the kit."""
+    base = os.path.expanduser(DEFAULT_WORKSPACE)
+    candidates = set()
+    if os.path.isdir(base):
+        for root, dirs, files in os.walk(base):
+            dirs[:] = [d for d in dirs if d not in SKIP_DIRS and d not in ("site", "build", "source-repo", "content", "videos")]
+            if "academy.json" in files:
+                candidates.add(os.path.realpath(root))
+                dirs[:] = []
+            elif os.path.relpath(root, base).count(os.sep) >= 2:
+                dirs[:] = []
+    for d in extra_dirs:
+        if d and os.path.exists(os.path.join(d, "academy.json")):
+            candidates.add(os.path.realpath(d))
+    out = []
+    for d in sorted(candidates):
+        try:
+            ac = Academy(d)
+            src = ac.cfg.get("source") or {}
+            out.append({
+                "dir": d,
+                "title": ac.cfg.get("title") or os.path.basename(d),
+                "repo": src.get("label") or src.get("repo") or "",
+                "branch": src.get("branch") or "",
+                "docs_root": src.get("docs_root") or "",
+                "lessons": len(ac.ids()),
+                "built": os.path.exists(os.path.join(ac.out, "index.html")),
+            })
+        except Exception:
+            continue
+    return out
 
 
 def _title_from_file(path):
