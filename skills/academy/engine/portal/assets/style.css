@@ -267,4 +267,57 @@ tr.speaking { box-shadow: none; }
 .sbar select { font: inherit; font-size: 13px; color: #fff; background: rgba(255,255,255,.14); border: 0; border-radius: 12px; padding: 5px 8px; max-width: 150px; }
 .sbar select option { color: #000; }
 @media (max-width: 860px) { .sp { left: -19px; width: 18px; padding: 0; } .plain > .sp { left: -23px; } .en > ul > li > .sp { left: -41px; } ol.steps > li > .sp { left: -19px; } .sbar .sb-voice { display: none; } }
-@media print { .sp, .sp-all, .sbar { display: none; } }
+@media print { .sp, .sp-all, .sbar, .connect-btn, .side-tabs { display: none; } }
+
+/* ---- GitHub App Connect & Repo Files sidebar */
+.connect-btn { display: inline-flex; align-items: center; gap: 7px; font: inherit; font-size: 13.5px; color: #fff; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22); border-radius: 20px; padding: 4px 12px 4px 8px; cursor: pointer; white-space: nowrap; }
+.connect-btn:hover { background: rgba(255,255,255,.2); border-color: rgba(255,255,255,.4); }
+.connect-btn img { display: block; border-radius: 4px; }
+.connect-btn.connected::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #4ADE80; }
+.side-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 12px; }
+.side-tabs button { font: inherit; font-size: 13px; padding: 5px 8px; border: 0; border-radius: 7px; background: none; color: var(--fg2); cursor: pointer; }
+.side-tabs button[aria-selected="true"] { background: var(--card); color: var(--fg); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.file-panel { display: grid; gap: 10px; }
+.file-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 12.5px; color: var(--fg3); }
+.file-head b { font-weight: 400; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-links { display: flex; gap: 8px; font-size: 12px; color: var(--accent); }
+.file-links button { font: inherit; background: none; border: 0; padding: 0; color: inherit; cursor: pointer; }
+.file-links button:hover { text-decoration: underline; }
+.file-search { width: 100%; font: inherit; font-size: 13.5px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
+.file-list { display: grid; gap: 4px; max-height: 44vh; overflow: auto; }
+.file-item { display: flex; align-items: flex-start; gap: 8px; padding: 6px 8px; border-radius: 8px; font-size: 13px; line-height: 1.35; }
+.file-item:hover { background: var(--brand-08); }
+.file-item input { margin-top: 3px; accent-color: var(--accent); flex: none; }
+.file-name { flex: 1; min-width: 0; cursor: pointer; color: var(--fg); overflow-wrap: anywhere; background: none; border: 0; text-align: left; font: inherit; padding: 0; }
+.file-name:hover { color: var(--accent); }
+.file-name small { display: block; color: var(--fg3); font-size: 11.5px; }
+.file-badge { font-size: 11px; padding: 1px 6px; border-radius: 10px; border: 1px solid var(--line); color: var(--fg3); white-space: nowrap; }
+.file-badge.new { border-color: var(--accent); color: var(--accent); }
+.file-badge.changed { border-color: var(--bad); color: var(--bad); }
+.file-badge.synced { border-color: var(--ok); color: var(--ok); }
+.file-actions { display: grid; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+.file-actions label { display: grid; gap: 3px; font-size: 12px; color: var(--fg3); }
+.file-actions select, .file-actions input { font: inherit; font-size: 13px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
+dialog.smodal { border: 0; padding: 0; background: transparent; color: var(--fg); max-width: min(760px, calc(100vw - 24px)); width: 100%; max-height: calc(100vh - 48px); margin: auto; overflow: visible; }
+dialog.smodal:modal { overscroll-behavior: contain; }
+dialog.smodal::backdrop { background: var(--overlay); overflow: hidden; overscroll-behavior: contain; }
+dialog.smodal[open] .vbox { max-height: calc(100vh - 48px); overflow: auto; }
+.setting-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; cursor: pointer; }
+.setting-row strong { display: block; font-weight: 400; font-size: 15px; color: var(--fg); }
+.setting-row .simple { margin-top: 2px; }
+input[type="checkbox"][switch] { accent-color: var(--accent); width: 20px; height: 20px; margin: 0; cursor: pointer; flex: none; }
+input[type="checkbox"][switch]:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
+.gh-modal { width: min(760px, 100%); overflow-x: hidden; }
+.gh-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.gh-brand > div { min-width: 0; }
+.gh-brand img { border-radius: 10px; flex: none; }
+.gh-card { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 10px; background: var(--bg); min-width: 0; }
+.gh-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; min-width: 0; }
+.gh-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; min-width: 0; }
+.gh-field { display: grid; gap: 4px; font-size: 13px; color: var(--fg2); min-width: 0; }
+.gh-field input, .gh-field select, .gh-field textarea { width: 100%; min-width: 0; max-width: 100%; font: inherit; font-size: 14px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--fg); }
+.gh-field.full { grid-column: 1 / -1; }
+.gh-check { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--fg2); cursor: pointer; }
+.gh-log { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; max-height: 120px; overflow: auto; color: var(--fg2); white-space: pre-wrap; }
+.gh-preview { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13.5px; line-height: 1.55; white-space: pre-wrap; overflow-x: auto; }
+@media (max-width: 700px) { .gh-grid { grid-template-columns: 1fr; } .connect-btn span { display: none; } }

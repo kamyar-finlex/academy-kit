@@ -27,7 +27,7 @@ EXAMPLE = "skills/academy/example/"            # the one academy that may live h
 VENDOR = ("skills/academy/engine/portal/assets/vendor/",)   # third-party code, listed in THIRD_PARTY_NOTICES.md
 SKIP_DIRS = {".git", "__pycache__", "node_modules"}
 # Things that only exist once an academy is built or synced: fine on disk, never to be committed.
-LOCAL_ONLY = re.compile(r"(^|/)(site|build|source-repo|videos)/|(^|/)sync-state\.json$")
+LOCAL_ONLY = re.compile(r"(^|/)(site|build|source-repo|videos)/|(^|/)(sync-state|github-app)\.json$")
 BLOCKED_EXT = {".woff", ".woff2", ".ttf", ".otf", ".eot", ".mp4", ".mov", ".webm", ".mp3", ".wav", ".vtt", ".pdf", ".doc", ".docx",
                ".xls", ".xlsx", ".ppt", ".pptx", ".key", ".pages", ".numbers", ".zip", ".tgz", ".gz", ".tar", ".7z", ".png", ".jpg",
                ".jpeg", ".gif", ".webp", ".heic", ".sqlite", ".db", ".env", ".pem", ".p12", ".pfx"}
@@ -37,7 +37,7 @@ PATTERNS = [
     ("a GitHub token", re.compile(r"\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{30,}\b|\bgithub_pat_[A-Za-z0-9_]{30,}\b")),
     ("a Slack token", re.compile(r"\bxox[abprs]-[A-Za-z0-9-]{10,}\b")),
     ("an API key", re.compile(r"\bsk-[A-Za-z0-9_-]{20,}\b")),
-    ("a password or secret with a value", re.compile(r"""(?i)\b(?:password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token)\b["']?\s*[:=]\s*["'][^"'\s]{6,}["']""")),
+    ("a password or secret with a value", re.compile(r"""(?i)\b(?:password|passwd|secret|client_secret|webhook_secret|api[_-]?key|access[_-]?token|auth[_-]?token)\b["']?\s*[:=]\s*["'][^"'\s]{6,}["']""")),
     ("a web address with a login in it", re.compile(r"\b[a-z][a-z0-9+.-]*://[^\s/:@\"']+:[^\s/@\"']+@")),
     ("an e-mail address", re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}\b")),
     ("a path into someone's home folder", re.compile(r"/(?:Users|home)/(?!you\b|me\b|name\b|username\b|user\b|Shared\b)[A-Za-z][\w.-]*/|[A-Za-z]:\\Users\\[\w.-]+")),
