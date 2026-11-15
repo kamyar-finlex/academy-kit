@@ -1259,7 +1259,7 @@
           <label class="gh-field">Organization / Account<select id="instSel">${installations.map((i) => `<option value="${esc(i.id)}">${esc(i.account)} (${esc(i.type)})</option>`).join("")}</select></label>
           <label class="gh-field">Repository (isolated workspace)<select id="repoSel"><option>Loading…</option></select></label>
           <label class="gh-field">Branch<select id="branchSel"><option value="">default</option></select></label>
-          <label class="gh-field">Docs folder<select id="appDocs"><option value="">(Root — entire repository)</option></select></label>
+          <label class="gh-field">Docs folder<select id="appDocs"><option value="">/ (Root — entire repository)</option></select></label>
           <label class="gh-field">Reader language<select id="appReader">${langOptions}</select></label>
           <label class="gh-field">Workspace path (auto)<input id="appOut" readonly></label>
         </div>
@@ -1279,9 +1279,11 @@
           if (!full) return;
           docsSel.innerHTML = `<option value="">Loading folders…</option>`;
           const d = await apiJson(`/api/github/folders?installation_id=${encodeURIComponent(instSel.value)}&repo=${encodeURIComponent(full)}&branch=${encodeURIComponent(br)}`).catch(() => ({ folders: [""] }));
-          const list = d.folders?.length ? d.folders : [""];
-          const preferDocs = list.includes("docs") ? "docs" : "";
-          docsSel.innerHTML = list.map((p) => `<option value="${esc(p)}" ${p === preferDocs ? "selected" : ""}>${p ? esc(p + "/") : "(Root — entire repository)"}</option>`).join("");
+          const raw = d.folders?.length ? d.folders : [""];
+          const list = raw.includes("") ? raw : ["", ...raw];
+          const savedDocs = studio.status?.connected?.repo === full ? (studio.status?.connected?.docs_root || "") : "";
+          const preferDocs = list.includes(savedDocs) ? savedDocs : "";
+          docsSel.innerHTML = list.map((p) => `<option value="${esc(p)}" ${p === preferDocs ? "selected" : ""}>${p ? esc(p + "/") : "/ (Root — entire repository)"}</option>`).join("");
         };
         const loadBranches = async () => {
           const full = repoSel.value;
