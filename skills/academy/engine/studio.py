@@ -286,16 +286,13 @@ def list_ollama_models(ollama_url):
         return []
 
 
-def _ollama_chat(ollama_url, model, system_prompt, user_prompt, timeout=180, on_progress=None, disable_thinking=True):
+def _ollama_chat_raw(ollama_url, model, messages, timeout=180, on_progress=None, disable_thinking=True, temperature=0.2):
     body = {
         "model": model,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
+        "messages": messages,
         "stream": True,
         "format": "json",
-        "options": {"temperature": 0.2, "num_ctx": 32768},
+        "options": {"temperature": temperature, "num_ctx": 32768},
     }
     if disable_thinking:
         body["think"] = False
@@ -326,9 +323,9 @@ def _ollama_chat(ollama_url, model, system_prompt, user_prompt, timeout=180, on_
     except urllib.error.HTTPError as e:
         err_text = e.read().decode("utf-8", errors="replace") if e.fp else str(e)
         if disable_thinking and e.code == 400 and "think" in err_text.lower():
-            return _ollama_chat(
-                ollama_url, model, system_prompt, user_prompt,
-                timeout=timeout, on_progress=on_progress, disable_thinking=False,
+            return _ollama_chat_raw(
+                ollama_url, model, messages,
+                timeout=timeout, on_progress=on_progress, disable_thinking=False, temperature=temperature,
             )
         raise RuntimeError(f"Ollama error ({e.code}) for {model}: {err_text[:240]}")
     except TimeoutError:
@@ -338,19 +335,97 @@ def _ollama_chat(ollama_url, model, system_prompt, user_prompt, timeout=180, on_
         if isinstance(reason, TimeoutError) or "timed out" in str(reason).lower():
             raise RuntimeError(f"Ollama timed out waiting for {model} after {timeout}s")
         raise RuntimeError(f"Ollama is not reachable at {ollama_url}: {reason}")
-    return _extract_json("".join(parts).strip())
+    return "".join(parts).strip()
+
+
+def _ollama_chat(ollama_url, model, system_prompt, user_prompt, timeout=180, on_progress=None, disable_thinking=True, temperature=0.2):
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt},
+    ]
+    text = _ollama_chat_raw(
+        ollama_url, model, messages,
+        timeout=timeout, on_progress=on_progress, disable_thinking=disable_thinking, temperature=temperature,
+    )
+    try:
+        return _extract_json(text)
+    except json.JSONDecodeError as first_err:
+        repair_msgs = [
+            {"role": "system", "content": "Fix the invalid JSON syntax (escape inner double quotes, add missing commas/braces) and return ONLY valid JSON preserving all content."},
+            {"role": "user", "content": f"JSONDecodeError: {first_err}\n\nMalformed JSON:\n{text[:18000]}"},
+        ]
+        repaired = _ollama_chat_raw(
+            ollama_url, model, repair_msgs,
+            timeout=120, on_progress=on_progress, disable_thinking=disable_thinking, temperature=0.0,
+        )
+        return _extract_json(repaired)
+
+
+def _sanitize_json_text(s):
+    """Escape raw control chars & invalid backslashes inside JSON strings and drop trailing commas."""
+    out = []
+    in_str = False
+    esc = False
+    valid_esc = set('"\\/bfnrtu')
+    i = 0
+    n = len(s)
+    while i < n:
+        ch = s[i]
+        if in_str:
+            if esc:
+                if ch not in valid_esc:
+                    out.append("\\")
+                out.append(ch)
+                esc = False
+            elif ch == "\\":
+                out.append(ch)
+                esc = True
+            elif ch == '"':
+                out.append(ch)
+                in_str = False
+            elif ch == "\n":
+                out.append("\\n")
+            elif ch == "\r":
+                out.append("\\r")
+            elif ch == "\t":
+                out.append("\\t")
+            elif ord(ch) < 32:
+                out.append(" ")
+            else:
+                out.append(ch)
+        else:
+            if ch == '"':
+                in_str = True
+                out.append(ch)
+            elif ch == ",":
+                j = i + 1
+                while j < n and s[j] in " \t\r\n":
+                    j += 1
+                if j < n and s[j] in "}]":
+                    i += 1
+                    continue
+                out.append(ch)
+            else:
+                out.append(ch)
+        i += 1
+    return "".join(out)
 
 
 def _extract_json(text):
     cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip(), flags=re.I)
-    try:
-        return json.loads(cleaned)
-    except json.JSONDecodeError:
-        start = cleaned.find("{")
-        end = cleaned.rfind("}")
-        if start != -1 and end > start:
-            return json.loads(cleaned[start:end + 1])
-        raise
+    candidates = [cleaned]
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+    if start != -1 and end > start:
+        candidates.append(cleaned[start:end + 1])
+    last_err = None
+    for cand in candidates:
+        for attempt in (cand, _sanitize_json_text(cand)):
+            try:
+                return json.loads(attempt)
+            except json.JSONDecodeError as e:
+                last_err = e
+    raise last_err
 
 
 def _normalize_lesson(lid, raw, fallback_title):
@@ -513,14 +588,14 @@ def _plan_lessons(ollama_url, model, repo_label, file_docs, on_progress=None, lo
     }
 
 
-def _generate_one_lesson(ollama_url, model, plan_item, doc_texts, lang_name, reader_name, on_progress=None):
+def _generate_one_lesson(ollama_url, model, plan_item, doc_texts, lang_name, reader_name, on_progress=None, temperature=0.2):
     tr_hint = (
         f'Include "tr" on key_terms with the {reader_name} translation + brief gloss.'
         if reader_name else ""
     )
     sys_p = (
         f"Write ONE structured learning lesson in {lang_name} strictly grounded in the provided source documents. "
-        "Never invent facts, dates, or rules not in the sources. Return ONLY valid JSON matching:\n"
+        "Never invent facts, dates, or rules not in the sources. Inside JSON string values, never write unescaped double quotes (\"); use single quotes or backticks (`) instead. Return ONLY valid JSON matching:\n"
         '{"id":"' + plan_item["id"] + '","name":"2-5 words","tagline":"1 sentence",'
         '"why":"2-4 sentences why it matters",'
         '"sections":[{"heading":"...","body":["paragraph","- bullet"],"explain":"2-4 plain-words sentences"}],'
@@ -543,6 +618,7 @@ def _generate_one_lesson(ollama_url, model, plan_item, doc_texts, lang_name, rea
         f"Lesson topic: {plan_item['name']}\n\n{bundle}",
         timeout=180,
         on_progress=on_progress,
+        temperature=temperature,
     )
     return _normalize_lesson(plan_item["id"], raw, plan_item["name"])
 
@@ -656,18 +732,31 @@ class JobManager:
                 self._update(job_id, stage="generating", current=f"Writing {label}…", progress=idx - 1)
                 self._log(job_id, f"Writing {item['id']} ({item['name']})…")
                 docs_bundle = [(p, by_path[p]) for p in item["sources"] if p in by_path]
-                lesson_obj = _generate_one_lesson(
-                    self.ollama_url,
-                    chosen,
-                    item,
-                    docs_bundle,
-                    lang_name,
-                    reader_name,
-                    on_progress=lambda tok, lbl=label: self._update(job_id, current=f"Writing {lbl} ({tok} tokens)…"),
-                )
-                errs, _ = validate.check_lesson(item["id"], lesson_obj, all_ids, ac.reader)
-                if errs:
-                    raise RuntimeError(f"Lesson {item['id']} failed validation: {'; '.join(errs)}")
+                lesson_obj = None
+                last_err = None
+                for attempt in range(2):
+                    try:
+                        lesson_obj = _generate_one_lesson(
+                            self.ollama_url,
+                            chosen,
+                            item,
+                            docs_bundle,
+                            lang_name,
+                            reader_name,
+                            on_progress=lambda tok, lbl=label: self._update(job_id, current=f"Writing {lbl} ({tok} tokens)…"),
+                            temperature=0.2 if attempt == 0 else 0.05,
+                        )
+                        errs, _ = validate.check_lesson(item["id"], lesson_obj, all_ids, ac.reader)
+                        if errs:
+                            raise RuntimeError(f"validation failed: {'; '.join(errs)}")
+                        break
+                    except Exception as e:
+                        last_err = e
+                        lesson_obj = None
+                        if attempt == 0:
+                            self._log(job_id, f"Retrying {item['id']} after error: {e}")
+                if lesson_obj is None:
+                    raise RuntimeError(f"{item['id']} ({item['name']}): {last_err}")
                 save_json(os.path.join(ac.content, item["id"] + ".json"), lesson_obj)
                 lessons_map[item["id"]] = {"sources": item["sources"]}
 
